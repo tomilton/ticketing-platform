@@ -4,3 +4,5 @@ adapters:
   sqs:
     sender:
       endpoint: ${AWS_ENDPOINT_URL}
+    listener:
+      endpoint: ${AWS_ENDPOINT_URL}

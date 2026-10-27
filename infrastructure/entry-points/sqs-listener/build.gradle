@@ -1,4 +1,9 @@
 dependencies {
+    compileOnly 'io.micrometer:micrometer-core'
+    compileOnly 'io.micrometer:context-propagation'
+    testImplementation 'io.micrometer:micrometer-core'
+    testImplementation 'io.micrometer:context-propagation'
+    testImplementation 'tools.jackson.core:jackson-databind'
     implementation project(':commons')
     implementation project(':sqs-commons')
     implementation 'software.amazon.awssdk:sqs'

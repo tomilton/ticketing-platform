@@ -44,8 +44,12 @@ adapters:
       order-placed-queue: order-placed
       send-timeout: 2s
     listener:
+      region: us-east-1
       order-placed-queue: order-placed
       order-placed-dlq: order-placed-dlq
+      wait-time: 1s
+      max-messages: 10
+      max-concurrency: 4
   payment:
     mode: APPROVE
     latency: 0s

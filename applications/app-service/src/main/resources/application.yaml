@@ -46,8 +46,12 @@ adapters:
       order-placed-queue: ${SQS_ORDER_PLACED_QUEUE}
       send-timeout: ${SQS_SEND_TIMEOUT}
     listener:
+      region: ${AWS_REGION}
       order-placed-queue: ${SQS_ORDER_PLACED_QUEUE}
       order-placed-dlq: ${SQS_ORDER_PLACED_DLQ}
+      wait-time: ${SQS_WAIT_TIME}
+      max-messages: ${SQS_MAX_MESSAGES}
+      max-concurrency: ${SQS_MAX_CONCURRENCY}
   payment:
     mode: ${PAYMENT_SIMULATOR_MODE}
     latency: ${PAYMENT_SIMULATOR_LATENCY}
