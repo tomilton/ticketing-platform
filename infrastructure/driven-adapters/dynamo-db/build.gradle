@@ -8,8 +8,10 @@ dependencies {
     compileOnly 'org.springframework.boot:spring-boot-starter'
     compileOnly 'org.springframework.boot:spring-boot-health'
     compileOnly 'jakarta.validation:jakarta.validation-api'
+    compileOnly 'tools.jackson.core:jackson-databind'
     testImplementation 'org.springframework.boot:spring-boot-starter'
     testImplementation 'org.springframework.boot:spring-boot-health'
+    testImplementation 'tools.jackson.core:jackson-databind'
     testImplementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
     testImplementation 'org.testcontainers:testcontainers-localstack'
     testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
