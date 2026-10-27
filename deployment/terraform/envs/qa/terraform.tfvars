@@ -40,6 +40,12 @@ observability = {
 
 settings = {
   CORS_ALLOWED_ORIGINS                  = "https://tickets-qa.example.com"
+  JWT_JWK_SET_URI                       = "https://auth-qa.example.com/.well-known/jwks.json"
+  JWT_ISSUER                            = "https://auth-qa.example.com"
+  JWT_AUDIENCE                          = "ticketing-platform"
+  JWT_ROLES_CLAIM                       = "cognito:groups"
+  JWT_ADMIN_ROLE                        = "ticketing-admin"
+  JWT_CLOCK_SKEW                        = "PT60S"
   MANAGEMENT_HEALTH_SHOW_COMPONENTS     = "always"
   DYNAMODB_API_CALL_TIMEOUT             = "PT2S"
   DYNAMODB_API_CALL_ATTEMPT_TIMEOUT     = "PT0.5S"

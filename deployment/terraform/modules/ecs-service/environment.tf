@@ -7,6 +7,12 @@
 locals {
   setting_names = [
     "CORS_ALLOWED_ORIGINS",
+    "JWT_JWK_SET_URI",
+    "JWT_ISSUER",
+    "JWT_AUDIENCE",
+    "JWT_ROLES_CLAIM",
+    "JWT_ADMIN_ROLE",
+    "JWT_CLOCK_SKEW",
     "MANAGEMENT_HEALTH_SHOW_COMPONENTS",
     "DYNAMODB_API_CALL_TIMEOUT",
     "DYNAMODB_API_CALL_ATTEMPT_TIMEOUT",
@@ -54,6 +60,7 @@ locals {
     REACTOR_CONTEXT_PROPAGATION          = "auto"
     MANAGEMENT_ENDPOINTS_EXPOSURE        = "health,prometheus"
     MANAGEMENT_HEALTH_PROBES_ENABLED     = "true"
+    JWT_MODE                             = "JWKS"
     ROUTES_BASE_PATH                     = "/api/v1"
     ROUTES_EVENTS                        = "/events"
     ROUTES_EVENT_BY_ID                   = "/events/{eventId}"

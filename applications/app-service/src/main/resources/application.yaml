@@ -13,6 +13,15 @@ app:
   role: ${APP_ROLE}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS}
+security:
+  jwt:
+    mode: ${JWT_MODE}
+    jwk-set-uri: ${JWT_JWK_SET_URI}
+    issuer: ${JWT_ISSUER}
+    audience: ${JWT_AUDIENCE}
+    roles-claim: ${JWT_ROLES_CLAIM}
+    admin-role: ${JWT_ADMIN_ROLE}
+    clock-skew: ${JWT_CLOCK_SKEW}
 routes:
   base-path: ${ROUTES_BASE_PATH}
   events: ${ROUTES_EVENTS}

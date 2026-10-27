@@ -15,6 +15,15 @@ app:
   role: api
   cors:
     allowed-origins: http://localhost:4200
+security:
+  jwt:
+    mode: JWKS
+    jwk-set-uri: http://localhost/started-by-test-identity-provider
+    issuer: https://issuer.test
+    audience: ticketing-platform
+    roles-claim: cognito:groups
+    admin-role: ticketing-admin
+    clock-skew: 60s
 routes:
   base-path: /api/v1
   events: /events
