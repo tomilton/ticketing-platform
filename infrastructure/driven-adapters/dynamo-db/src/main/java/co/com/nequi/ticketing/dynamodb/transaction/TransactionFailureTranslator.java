@@ -13,6 +13,7 @@ import static co.com.nequi.ticketing.dynamodb.transaction.ReservationTransaction
 import static co.com.nequi.ticketing.dynamodb.transaction.ReservationTransactionBuilder.LIMIT_ITEM;
 import static co.com.nequi.ticketing.dynamodb.transaction.ReservationTransactionBuilder.SHARD_ITEM;
 import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.EVENT_NOT_ACTIVE;
+import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.INVALID_STATE_TRANSITION;
 import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.REQUEST_IN_PROGRESS;
 import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.TICKET_LIMIT_EXCEEDED;
 
@@ -51,6 +52,21 @@ public class TransactionFailureTranslator {
             return REQUEST_IN_PROGRESS.build();
         }
         return toConflictOrTechnical(codes, cancellation);
+    }
+
+    /**
+     * Translates a cancelled change of status. Only the condition of the order is a business answer:
+     * another copy changed it first. A failed defensive condition of the inventory is a data error.
+     *
+     * @param cancellation the cancellation returned by DynamoDB
+     * @return {@code INVALID_STATE_TRANSITION}, {@link TransactionConflictException} to retry, or a
+     * technical exception
+     */
+    public RuntimeException translateTransition(TransactionCanceledException cancellation) {
+        List<String> codes = codes(cancellation);
+        return failed(codes, TransitionTransactionBuilder.ORDER_ITEM)
+                ? INVALID_STATE_TRANSITION.build()
+                : toConflictOrTechnical(codes, cancellation);
     }
 
     /**

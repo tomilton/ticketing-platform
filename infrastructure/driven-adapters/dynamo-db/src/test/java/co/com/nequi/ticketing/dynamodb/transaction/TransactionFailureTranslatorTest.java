@@ -78,6 +78,24 @@ class TransactionFailureTranslatorTest {
         assertThat(error).isInstanceOf(TechnicalException.class);
     }
 
+    @Test
+    void shouldReturnInvalidTransitionWhenOrderConditionOfTransitionFails() {
+        // When
+        RuntimeException error = translator.translateTransition(cancellation("ConditionalCheckFailed", "ConditionalCheckFailed"));
+
+        // Then
+        assertThat(error).isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getBusinessErrorMessage())
+                .isEqualTo(BusinessErrorMessage.INVALID_STATE_TRANSITION);
+    }
+
+    @Test
+    void shouldReturnDynamoDbErrorWhenDefensiveConditionOfTransitionFails() {
+        // When / Then
+        assertThat(translator.translateTransition(cancellation("None", "ConditionalCheckFailed", "None")))
+                .isInstanceOf(TechnicalException.class);
+    }
+
     static TransactionCanceledException cancellation(String... codes) {
         return TransactionCanceledException.builder()
                 .cancellationReasons(Arrays.stream(codes)
