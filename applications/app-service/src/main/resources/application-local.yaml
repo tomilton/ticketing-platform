@@ -1,3 +1,6 @@
 adapters:
   dynamodb:
     endpoint: ${AWS_ENDPOINT_URL}
+  sqs:
+    sender:
+      endpoint: ${AWS_ENDPOINT_URL}

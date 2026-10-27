@@ -38,7 +38,9 @@ adapters:
     reserve-timeout: 5s
   sqs:
     sender:
+      region: us-east-1
       order-placed-queue: order-placed
+      send-timeout: 2s
     listener:
       order-placed-queue: order-placed
       order-placed-dlq: order-placed-dlq
