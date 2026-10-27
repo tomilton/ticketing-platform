@@ -1,26 +1,35 @@
 package co.com.nequi.ticketing.api.config;
 
-import co.com.nequi.ticketing.api.Handler;
-import co.com.nequi.ticketing.api.RouterRest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webflux.test.autoconfigure.WebFluxTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.ServerResponse;
 
-@ContextConfiguration(classes = {RouterRest.class, Handler.class})
+import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
+import static org.springframework.web.reactive.function.server.RouterFunctions.route;
+
+@ContextConfiguration(classes = ConfigTest.TestRouter.class)
 @WebFluxTest
 @Import({CorsConfig.class, SecurityHeadersConfig.class})
+@TestPropertySource(properties = "app.cors.allowed-origins=http://localhost:4200")
 class ConfigTest {
+
+    private static final String TEST_PATH = "/test";
 
     @Autowired
     private WebTestClient webTestClient;
 
     @Test
-    void corsConfigurationShouldAllowOrigins() {
+    void shouldAddSecurityHeadersWhenAnyRouteResponds() {
         webTestClient.get()
-                .uri("/api/usecase/path")
+                .uri(TEST_PATH)
                 .exchange()
                 .expectStatus().isOk()
                 .expectHeader().valueEquals("Content-Security-Policy",
@@ -33,4 +42,12 @@ class ConfigTest {
                 .expectHeader().valueEquals("Referrer-Policy", "strict-origin-when-cross-origin");
     }
 
+    @Configuration
+    static class TestRouter {
+
+        @Bean
+        RouterFunction<ServerResponse> testRoute() {
+            return route(GET(TEST_PATH), request -> ServerResponse.ok().build());
+        }
+    }
 }
