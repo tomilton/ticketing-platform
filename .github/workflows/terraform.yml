@@ -1,0 +1,65 @@
+# Validation of the infrastructure without an AWS account: format, validation of each environment,
+# native tests with mock providers, tflint and checkov. The tools run in their images with the versions
+# of deployment/terraform/README.md, the same commands as on a developer machine.
+name: terraform
+
+on:
+  pull_request:
+    paths:
+      - "deployment/terraform/**"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches: [main]
+    paths:
+      - "deployment/terraform/**"
+      - ".github/workflows/terraform.yml"
+
+permissions:
+  contents: read
+
+env:
+  TERRAFORM_IMAGE: hashicorp/terraform:1.16.7
+  TFLINT_IMAGE: ghcr.io/terraform-linters/tflint:v0.65.0
+  CHECKOV_IMAGE: bridgecrew/checkov:3.3.30
+  TF_ROOT: deployment/terraform
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Format
+        run: docker run --rm -v "$PWD/$TF_ROOT:/w" -w /w "$TERRAFORM_IMAGE" fmt -check -recursive
+
+      - name: Validate and test each module and environment
+        working-directory: ${{ env.TF_ROOT }}
+        run: |
+          # The globs are relative to the Terraform root; failglob stops the job if one matches nothing.
+          shopt -s failglob
+          for dir in modules/*/ envs/*/; do
+            echo "::group::$dir"
+            docker run --rm -v "$PWD:/w" -w "/w/$dir" "$TERRAFORM_IMAGE" init -backend=false -input=false
+            if [ -d "${dir}tests" ]; then
+              docker run --rm -v "$PWD:/w" -w "/w/$dir" "$TERRAFORM_IMAGE" test
+            fi
+            echo "::endgroup::"
+          done
+          for env in dev qa prod; do
+            docker run --rm -v "$PWD:/w" -w "/w/envs/$env" "$TERRAFORM_IMAGE" validate
+          done
+
+      - name: tflint
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          docker run --rm -e GITHUB_TOKEN -v "$PWD/$TF_ROOT:/data" -w /data --entrypoint sh "$TFLINT_IMAGE" \
+            -c "tflint --init && tflint --recursive --config /data/.tflint.hcl"
+
+      - name: checkov
+        run: |
+          docker run --rm -v "$PWD/$TF_ROOT:/tf" -w /tf "$CHECKOV_IMAGE" \
+            -d . --framework terraform --compact --quiet --skip-path '\.terraform'

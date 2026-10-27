@@ -1,0 +1,54 @@
+# Build of the application: compilation, unit and integration tests (Testcontainers with LocalStack),
+# validateStructure, environment parity and the 90 % coverage gate. gradle-wrapper.jar is not versioned
+# (C052), so the job uses the Gradle version of gradle-wrapper.properties through setup-gradle.
+name: build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gradle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "9.8.2"
+
+      - name: Build and test
+        # One worker, as documented in the README: the integration tests share LocalStack containers.
+        run: gradle build --no-daemon --max-workers=1
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: jacoco-report
+          path: build/reports/jacoco/jacocoMergedReport/
+          if-no-files-found: ignore
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            **/build/reports/tests/
+            **/build/test-results/
+          if-no-files-found: ignore
