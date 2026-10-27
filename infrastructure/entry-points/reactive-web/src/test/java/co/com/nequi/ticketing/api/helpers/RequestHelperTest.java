@@ -17,6 +17,7 @@ import reactor.test.StepVerifier;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -57,6 +58,25 @@ class RequestHelperTest {
         StepVerifier.create(RequestHelper.bodyToMonoOrFailWhenEmpty(strictRequest(body), QuantityDto.class))
                 .expectErrorSatisfies(error -> assertThat(error).isInstanceOf(ValidationException.class)
                         .hasMessageContaining("quantity"))
+                .verify();
+    }
+
+    @Test
+    void shouldFailWithValidationErrorNamingFieldWhenUuidFieldIsNotUuid() {
+        // When / Then
+        StepVerifier.create(RequestHelper.bodyToMonoOrFailWhenEmpty(strictRequest("{\"customerId\":\"abc\"}"),
+                        CustomerDto.class))
+                .expectErrorSatisfies(error -> assertThat(error).isInstanceOf(ValidationException.class)
+                        .hasMessageContaining("customerId"))
+                .verify();
+    }
+
+    @Test
+    void shouldKeepInvalidJsonWhenFieldOfAnotherTypeHasWrongValue() {
+        // When / Then
+        StepVerifier.create(RequestHelper.bodyToMonoOrFailWhenEmpty(strictRequest("{\"active\":\"maybe\"}"),
+                        FlagDto.class))
+                .expectErrorSatisfies(error -> assertTechnicalError(error, TechnicalErrorMessage.INVALID_JSON))
                 .verify();
     }
 
@@ -103,6 +123,12 @@ class RequestHelperTest {
     }
 
     record SampleDto(String name, Instant date) {
+    }
+
+    record CustomerDto(UUID customerId) {
+    }
+
+    record FlagDto(Boolean active) {
     }
 
     record QuantityDto(Integer quantity) {

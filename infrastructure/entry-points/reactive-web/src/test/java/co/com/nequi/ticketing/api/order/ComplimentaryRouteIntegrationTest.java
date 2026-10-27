@@ -89,12 +89,9 @@ class ComplimentaryRouteIntegrationTest {
     }
 
     @Test
-    void shouldRejectWhenCustomerIdIsNotUuid() {
+    void shouldRejectNamingCustomerIdWhenCustomerIdIsNotUuid() {
         // When / Then
-        post(PATH, "{\"customerId\":\"abc\",\"quantity\":3}")
-                .expectStatus().isBadRequest()
-                .expectBody()
-                .jsonPath("$.errors[0].code").value(code -> assertThat((String) code).startsWith("TKT000"));
+        assertErrorNaming(post(PATH, "{\"customerId\":\"abc\",\"quantity\":3}"), "customerId");
         verifyNoInteractions(grantComplimentaryUseCase);
     }
 
