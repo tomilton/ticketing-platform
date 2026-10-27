@@ -16,13 +16,19 @@ import co.com.nequi.ticketing.api.event.mapper.EventMapperImpl;
 import co.com.nequi.ticketing.api.handle.exceptions.ErrorResponseBuilder;
 import co.com.nequi.ticketing.api.handle.exceptions.ErrorStatusMapper;
 import co.com.nequi.ticketing.api.handle.exceptions.GlobalErrorWebExceptionHandler;
+import co.com.nequi.ticketing.api.order.ComplimentaryHandler;
+import co.com.nequi.ticketing.api.order.ComplimentaryRouterRest;
+import co.com.nequi.ticketing.api.order.mapper.OrderMapManagement;
+import co.com.nequi.ticketing.api.order.mapper.OrderMapperImpl;
 import co.com.nequi.ticketing.api.validation.BeanValidator;
 import co.com.nequi.ticketing.model.event.command.CreateEventCommand;
+import co.com.nequi.ticketing.model.order.command.GrantComplimentaryCommand;
 import co.com.nequi.ticketing.model.shared.EventId;
 import co.com.nequi.ticketing.usecase.createevent.CreateEventUseCase;
 import co.com.nequi.ticketing.usecase.getavailability.GetAvailabilityUseCase;
 import co.com.nequi.ticketing.usecase.getbatchavailability.GetBatchAvailabilityUseCase;
 import co.com.nequi.ticketing.usecase.getevent.GetEventUseCase;
+import co.com.nequi.ticketing.usecase.grantcomplimentary.GrantComplimentaryUseCase;
 import co.com.nequi.ticketing.usecase.listactiveevents.ListActiveEventsUseCase;
 import co.com.nequi.ticketing.usecase.watchavailability.WatchAvailabilityUseCase;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -48,14 +54,16 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.EVENT_DATE_NOT_IN_FUTURE;
+import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.EVENT_NOT_ACTIVE;
 import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.EVENT_NOT_FOUND;
+import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.TICKETS_SOLD_OUT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 /**
- * SC-004: every error case of the specification answers with its HTTP status and an exact catalog
- * code.
+ * SC-004 of feature 001 and SC-005 of feature 003: every error case of the specification answers
+ * with its HTTP status and an exact catalog code.
  */
 @WebFluxTest
 @ContextConfiguration(classes = ErrorCatalogRouteTest.ErrorCatalogTestConfig.class)
@@ -66,6 +74,8 @@ class ErrorCatalogRouteTest {
     private static final String CODE_PATTERN = "^TK[BT]\\d{4}$";
     private static final String VALID_BODY =
             "{\"name\":\"Rock\",\"venue\":{\"name\":\"Arena\",\"city\":\"Bogota\"},\"date\":\"2020-01-01T00:00:00Z\",\"capacity\":1}";
+    private static final String COMPLIMENTARY = EVENTS + "/" + KNOWN_ID + "/complimentary";
+    private static final String COMPLIMENTARY_BODY = "{\"customerId\":\"" + KNOWN_ID + "\",\"quantity\":3}";
     private static final Consumer<ErrorCatalogRouteTest> NO_STUB = test -> {
     };
 
@@ -89,6 +99,9 @@ class ErrorCatalogRouteTest {
 
     @MockitoBean
     private WatchAvailabilityUseCase watchAvailabilityUseCase;
+
+    @MockitoBean
+    private GrantComplimentaryUseCase grantComplimentaryUseCase;
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("errorCases")
@@ -138,9 +151,34 @@ class ErrorCatalogRouteTest {
                         EVENTS + "/" + KNOWN_ID + "/availability/stream", null, 404, "TKB0001",
                         (Consumer<ErrorCatalogRouteTest>) test -> when(test.getAvailabilityUseCase.get(any(EventId.class)))
                                 .thenReturn(Mono.error(EVENT_NOT_FOUND.build()))),
+                Arguments.of("003 US2-2 complimentary sold out", HttpMethod.POST, COMPLIMENTARY, COMPLIMENTARY_BODY,
+                        409, "TKB0003", grantFailingWith(TICKETS_SOLD_OUT.build())),
+                Arguments.of("003 US2-3 complimentary event not found", HttpMethod.POST, COMPLIMENTARY,
+                        COMPLIMENTARY_BODY, 404, "TKB0001", grantFailingWith(EVENT_NOT_FOUND.build())),
+                Arguments.of("003 US2-3 complimentary event not on sale", HttpMethod.POST, COMPLIMENTARY,
+                        COMPLIMENTARY_BODY, 409, "TKB0007", grantFailingWith(EVENT_NOT_ACTIVE.build())),
+                Arguments.of("003 US2-4 complimentary quantity zero", HttpMethod.POST, COMPLIMENTARY,
+                        COMPLIMENTARY_BODY.replace("3}", "0}"), 400, "TKT0001", NO_STUB),
+                Arguments.of("003 US2-4 complimentary quantity above 50", HttpMethod.POST, COMPLIMENTARY,
+                        COMPLIMENTARY_BODY.replace("3}", "51}"), 400, "TKT0001", NO_STUB),
+                Arguments.of("003 US2-4 complimentary customer missing", HttpMethod.POST, COMPLIMENTARY,
+                        "{\"quantity\":3}", 400, "TKT0001", NO_STUB),
+                Arguments.of("003 US2-4 complimentary customer not UUID", HttpMethod.POST, COMPLIMENTARY,
+                        COMPLIMENTARY_BODY.replace(KNOWN_ID, "abc"), 400, "TKT0001", NO_STUB),
+                Arguments.of("003 US2-4 complimentary event id not UUID", HttpMethod.POST,
+                        EVENTS + "/no-es-uuid/complimentary", COMPLIMENTARY_BODY, 400, "TKT0001", NO_STUB),
+                Arguments.of("003 complimentary empty body", HttpMethod.POST, COMPLIMENTARY, null, 400, "TKT0003",
+                        NO_STUB),
+                Arguments.of("003 complimentary unexpected error", HttpMethod.POST, COMPLIMENTARY, COMPLIMENTARY_BODY,
+                        500, "TKT0009", grantFailingWith(new IllegalStateException("unexpected"))),
                 Arguments.of("Unexpected error", HttpMethod.GET, EVENTS + "/" + KNOWN_ID, null, 500, "TKT0009",
                         (Consumer<ErrorCatalogRouteTest>) test -> when(test.getEventUseCase.get(any(EventId.class)))
                                 .thenReturn(Mono.error(new IllegalStateException("unexpected")))));
+    }
+
+    private static Consumer<ErrorCatalogRouteTest> grantFailingWith(RuntimeException error) {
+        return test -> when(test.grantComplimentaryUseCase.grant(any(GrantComplimentaryCommand.class)))
+                .thenReturn(Mono.error(error));
     }
 
     @Configuration
@@ -149,7 +187,8 @@ class ErrorCatalogRouteTest {
     @Import({EventRouterRest.class, EventHandler.class, EventMapperImpl.class, EventMapManagement.class,
             AvailabilityRouterRest.class, AvailabilityHandler.class, AvailabilityStreamHub.class,
             AvailabilityMapperImpl.class, AvailabilityMapManagement.class, BeanValidator.class,
-            GlobalErrorWebExceptionHandler.class, ErrorResponseBuilder.class, ErrorStatusMapper.class})
+            GlobalErrorWebExceptionHandler.class, ErrorResponseBuilder.class, ErrorStatusMapper.class,
+            ComplimentaryRouterRest.class, ComplimentaryHandler.class, OrderMapperImpl.class, OrderMapManagement.class})
     static class ErrorCatalogTestConfig {
 
         @Bean

@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -42,7 +43,7 @@ class OrderTest {
         assertThat(order.getOrderId()).isEqualTo(orderId);
         assertThat(order.getCustomerId()).isEqualTo(CUSTOMER_ID);
         assertThat(order.getEventId()).isEqualTo(EVENT_ID);
-        assertThat(order.getQuantity()).isEqualTo(new Quantity(3));
+        assertThat(order.getQuantity()).isEqualTo(3);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.RESERVED);
         assertThat(order.getVersion()).isEqualTo(1L);
         assertThat(order.getShardId()).isEqualTo(SHARD_ID);
@@ -84,6 +85,62 @@ class OrderTest {
         builders.forEach(builder -> assertThatThrownBy(builder::build).isInstanceOf(NullPointerException.class));
     }
 
+    @Test
+    void shouldCreateComplimentaryOrderWhenComplimentaryIsGranted() {
+        // Given
+        OrderId orderId = OrderId.newId();
+
+        // When
+        Order order = Order.grantComplimentary(orderId, CUSTOMER_ID, EVENT_ID, new ComplimentaryQuantity(20), SHARD_ID,
+                NOW);
+
+        // Then
+        assertThat(order.getOrderId()).isEqualTo(orderId);
+        assertThat(order.getQuantity()).isEqualTo(20);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPLIMENTARY);
+        assertThat(order.getVersion()).isEqualTo(1L);
+        assertThat(order.getShardId()).isEqualTo(SHARD_ID);
+        assertThat(order.getCreatedAt()).isEqualTo(CREATED_AT);
+        assertThat(order.getExpiresAt()).isEqualTo(CREATED_AT);
+        assertThat(order.getTickets()).hasSize(20).doesNotHaveDuplicates();
+        assertThat(order.effectiveStatus(NOW.plusSeconds(3600))).isEqualTo(OrderStatus.COMPLIMENTARY);
+        assertThat(order.ticketsAt(NOW)).extracting(Ticket::status).containsOnly(TicketStatus.COMPLIMENTARY);
+    }
+
+    @Test
+    void shouldRecordAdminChangeWhenComplimentaryIsGranted() {
+        // Given
+        Order order = Order.grantComplimentary(OrderId.newId(), CUSTOMER_ID, EVENT_ID, new ComplimentaryQuantity(3),
+                SHARD_ID, NOW);
+
+        // When / Then
+        assertThat(order.grantChange()).isEqualTo(new OrderStatusChange(order.getOrderId(), null,
+                OrderStatus.COMPLIMENTARY, StatusChangeReason.COMPLIMENTARY_GRANTED, ChangeActor.ADMIN, CREATED_AT));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 7})
+    void shouldThrowIllegalArgumentExceptionWhenPlacedOrderQuantityIsOutOfRange(Integer quantity) {
+        // Given
+        Order.OrderBuilder builder = reserved().toBuilder().quantity(quantity)
+                .tickets(Stream.generate(TicketId::newId).limit(quantity).toList());
+
+        // When / Then
+        assertThatThrownBy(builder::build).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldThrowIllegalArgumentExceptionWhenComplimentaryQuantityIsOutOfRange() {
+        // Given
+        Order order = Order.grantComplimentary(OrderId.newId(), CUSTOMER_ID, EVENT_ID, new ComplimentaryQuantity(1),
+                SHARD_ID, NOW);
+        Order.OrderBuilder builder = order.toBuilder().quantity(51)
+                .tickets(Stream.generate(TicketId::newId).limit(51).toList());
+
+        // When / Then
+        assertThatThrownBy(builder::build).isInstanceOf(IllegalArgumentException.class);
+    }
+
     @ParameterizedTest
     @EnumSource(value = OrderStatus.class, names = {"RESERVED", "PENDING_CONFIRMATION"})
     void shouldKeepStatusWhenActiveOrderIsBeforeExpiration(OrderStatus status) {
@@ -109,7 +166,7 @@ class OrderTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = OrderStatus.class, names = {"SOLD", "CANCELLED", "EXPIRED"})
+    @EnumSource(value = OrderStatus.class, names = {"SOLD", "CANCELLED", "EXPIRED", "COMPLIMENTARY"})
     void shouldKeepFinalStatusWhenOrderIsFinal(OrderStatus status) {
         // Given
         Order order = reserved().toBuilder().status(status).build();

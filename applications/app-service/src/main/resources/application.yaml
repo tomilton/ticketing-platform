@@ -22,6 +22,7 @@ routes:
   availability-stream: ${ROUTES_AVAILABILITY_STREAM}
   orders: ${ROUTES_ORDERS}
   order-by-id: ${ROUTES_ORDER_BY_ID}
+  complimentary: ${ROUTES_COMPLIMENTARY}
 adapters:
   dynamodb:
     region: ${AWS_REGION}
@@ -40,6 +41,7 @@ adapters:
     pending-publication-index: ${DYNAMODB_PENDING_PUBLICATION_INDEX}
     transaction-conflict-retries: ${DYNAMODB_TRANSACTION_CONFLICT_RETRIES}
     reserve-timeout: ${DYNAMODB_RESERVE_TIMEOUT}
+    scheduler-locks-table: ${DYNAMODB_SCHEDULER_LOCKS_TABLE}
   sqs:
     sender:
       region: ${AWS_REGION}
@@ -72,6 +74,13 @@ orders:
   republish-interval: ${ORDERS_REPUBLISH_INTERVAL}
   republish-grace: ${ORDERS_REPUBLISH_GRACE}
   republish-concurrency: ${ORDERS_REPUBLISH_CONCURRENCY}
+sweep:
+  interval: ${SWEEP_INTERVAL}
+  lock-lease: ${SWEEP_LOCK_LEASE}
+  batch-size: ${SWEEP_BATCH_SIZE}
+  concurrency: ${SWEEP_CONCURRENCY}
+complimentary:
+  max-per-grant: ${COMPLIMENTARY_MAX_PER_GRANT}
 idempotency:
   ttl: ${IDEMPOTENCY_TTL}
   lease: ${IDEMPOTENCY_LEASE}

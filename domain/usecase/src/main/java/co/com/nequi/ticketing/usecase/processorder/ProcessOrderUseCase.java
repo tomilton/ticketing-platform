@@ -51,7 +51,7 @@ public class ProcessOrderUseCase {
             case RESERVED -> processReserved(order, now);
             case PENDING_CONFIRMATION -> requestPayment(order);
             case EXPIRED -> expireIfActive(order, now).defaultIfEmpty(ProcessingOutcome.IGNORED);
-            case SOLD, CANCELLED -> Mono.just(ProcessingOutcome.IGNORED);
+            case SOLD, CANCELLED, COMPLIMENTARY -> Mono.just(ProcessingOutcome.IGNORED);
         };
     }
 
@@ -95,7 +95,7 @@ public class ProcessOrderUseCase {
     private Mono<ProcessingOutcome> settleApprovedPayment(Order reread) {
         Instant now = clockProvider.now();
         return switch (reread.effectiveStatus(now)) {
-            case SOLD -> Mono.just(ProcessingOutcome.IGNORED);
+            case SOLD, COMPLIMENTARY -> Mono.just(ProcessingOutcome.IGNORED);
             case RESERVED, PENDING_CONFIRMATION -> orderRepository.apply(reread.transitionTo(OrderStatus.SOLD,
                     StatusChangeReason.PAYMENT_APPROVED, now), InventoryMovement.SELL).thenReturn(ProcessingOutcome.SOLD);
             case EXPIRED -> expireIfActive(reread, now).switchIfEmpty(Mono.defer(() -> refund(reread)));

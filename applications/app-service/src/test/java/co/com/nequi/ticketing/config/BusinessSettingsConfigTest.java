@@ -1,15 +1,18 @@
 package co.com.nequi.ticketing.config;
 
 import co.com.nequi.ticketing.model.config.AvailabilityWatchSettings;
+import co.com.nequi.ticketing.model.config.ComplimentarySettings;
 import co.com.nequi.ticketing.model.config.IdempotencySettings;
 import co.com.nequi.ticketing.model.config.InventorySettings;
 import co.com.nequi.ticketing.model.config.OrderSettings;
+import co.com.nequi.ticketing.model.config.SweepSettings;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import java.time.Duration;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -19,7 +22,9 @@ class BusinessSettingsConfigTest {
             .withUserConfiguration(BusinessSettingsConfig.class)
             .withPropertyValues("availability.poll-interval=1s", "orders.max-tickets-per-order=6",
                     "orders.max-tickets-per-customer=6", "orders.reservation-ttl=10m", "orders.republish-grace=5s",
-                    "orders.republish-concurrency=4", "idempotency.ttl=24h", "idempotency.lease=10s");
+                    "orders.republish-concurrency=4", "idempotency.ttl=24h", "idempotency.lease=10s",
+                    "sweep.lock-lease=60s", "sweep.batch-size=500", "sweep.concurrency=8",
+                    "complimentary.max-per-grant=50");
 
     @ParameterizedTest
     @ValueSource(strings = {"0", "21"})
@@ -50,6 +55,34 @@ class BusinessSettingsConfigTest {
                     assertThat(context.getBean(IdempotencySettings.class))
                             .isEqualTo(new IdempotencySettings(Duration.ofHours(24), Duration.ofSeconds(10)));
                 });
+    }
+
+    @Test
+    void shouldExposeDistinctInstanceIdWhenEachContextStarts() {
+        // When / Then
+        contextRunner.withPropertyValues("inventory.shard-count=1")
+                .run(first -> contextRunner.withPropertyValues("inventory.shard-count=1")
+                        .run(second -> assertThat(first.getBean(UUID.class)).isNotEqualTo(second.getBean(UUID.class))));
+    }
+
+    @Test
+    void shouldExposeSweepAndComplimentarySettingsWhenValuesAreValid() {
+        // When / Then
+        contextRunner.withPropertyValues("inventory.shard-count=1")
+                .run(context -> {
+                    assertThat(context.getBean(SweepSettings.class))
+                            .isEqualTo(new SweepSettings(Duration.ofSeconds(60), 500, 8));
+                    assertThat(context.getBean(ComplimentarySettings.class)).isEqualTo(new ComplimentarySettings(50));
+                });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"sweep.batch-size=0", "sweep.concurrency=0", "sweep.lock-lease=0s",
+            "complimentary.max-per-grant=51"})
+    void shouldNotStartWhenSweepOrComplimentarySettingIsInvalid(String invalid) {
+        // When / Then
+        contextRunner.withPropertyValues("inventory.shard-count=1", invalid)
+                .run(context -> assertThat(context).hasFailed());
     }
 
     @ParameterizedTest

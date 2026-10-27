@@ -24,6 +24,7 @@ routes:
   availability-stream: /events/{eventId}/availability/stream
   orders: /orders
   order-by-id: /orders/{orderId}
+  complimentary: /events/{eventId}/complimentary
 adapters:
   dynamodb:
     api-call-timeout: 5s
@@ -38,6 +39,7 @@ adapters:
     pending-publication-index: pending-publication
     transaction-conflict-retries: 10
     reserve-timeout: 5s
+    scheduler-locks-table: scheduler_locks
   sqs:
     sender:
       region: us-east-1
@@ -70,6 +72,13 @@ orders:
   republish-interval: 10s
   republish-grace: 5s
   republish-concurrency: 4
+sweep:
+  interval: 30s
+  lock-lease: 60s
+  batch-size: 500
+  concurrency: 8
+complimentary:
+  max-per-grant: 50
 idempotency:
   ttl: 24h
   lease: 10s

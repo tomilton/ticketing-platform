@@ -68,4 +68,27 @@ public interface OrderRepository {
      * @return the identifiers of the orders, in no particular order
      */
     Flux<OrderId> findPendingPublication(Instant createdBefore);
+
+    /**
+     * Stores a complimentary order in a single atomic write: it checks that the event is on sale,
+     * moves the tickets of one shard from available to complimentary and stores the order with its
+     * audit record. It tries the shards in circular order from {@code order.shardId}. The limit of
+     * the customer does not change.
+     *
+     * @param order the new complimentary order; its shard is the first one to try
+     * @param event the event of the order
+     * @param now   the current instant
+     * @return the stored order with the shard that served it; it fails with {@code EVENT_NOT_ACTIVE}
+     * or {@code TICKETS_SOLD_OUT}
+     */
+    Mono<Order> grantComplimentary(Order order, Event event, Instant now);
+
+    /**
+     * Finds the active orders whose reservation ended, without reading the orders in a final status.
+     *
+     * @param now   the current instant; an order expiring at this instant is included
+     * @param limit the maximum number of orders to return
+     * @return the identifiers of the expired orders, in no particular order
+     */
+    Flux<OrderId> findExpired(Instant now, Integer limit);
 }

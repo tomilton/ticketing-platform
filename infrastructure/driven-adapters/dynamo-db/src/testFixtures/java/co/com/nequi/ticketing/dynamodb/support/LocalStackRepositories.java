@@ -12,6 +12,7 @@ import co.com.nequi.ticketing.dynamodb.mapper.InventoryShardEntityMapperImpl;
 import co.com.nequi.ticketing.dynamodb.mapper.OrderEntityMapperImpl;
 import co.com.nequi.ticketing.dynamodb.pagination.EventPageCursorCodec;
 import co.com.nequi.ticketing.dynamodb.transaction.AuditItemBuilder;
+import co.com.nequi.ticketing.dynamodb.transaction.ComplimentaryTransactionBuilder;
 import co.com.nequi.ticketing.dynamodb.transaction.ReservationTransactionBuilder;
 import co.com.nequi.ticketing.dynamodb.transaction.TransactionFailureTranslator;
 import co.com.nequi.ticketing.dynamodb.transaction.TransitionTransactionBuilder;
@@ -59,7 +60,8 @@ public final class LocalStackRepositories {
     public OrderDynamoRepository orderRepository() {
         return new OrderDynamoRepository(client, properties, orderMapper,
                 new ReservationTransactionBuilder(properties, orderMapper, new IdempotencyEntityMapper(), auditItemBuilder),
-                new TransitionTransactionBuilder(properties, auditItemBuilder), new TransactionFailureTranslator());
+                new TransitionTransactionBuilder(properties, auditItemBuilder), new TransactionFailureTranslator(),
+                new ComplimentaryTransactionBuilder(properties, orderMapper, auditItemBuilder));
     }
 
     public IdempotencyDynamoRepository idempotencyRepository(Duration lease) {

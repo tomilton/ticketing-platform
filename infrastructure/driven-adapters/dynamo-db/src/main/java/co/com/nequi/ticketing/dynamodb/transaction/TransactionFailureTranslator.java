@@ -55,6 +55,24 @@ public class TransactionFailureTranslator {
     }
 
     /**
+     * Translates the cancellation of a complimentary grant. Its event and shard items have the same
+     * positions as in a reservation.
+     *
+     * @param cancellation the cancellation returned by DynamoDB
+     * @return {@code EVENT_NOT_ACTIVE}, {@link ShardSoldOutException} to try another shard,
+     * {@link TransactionConflictException} to retry, or a technical exception
+     */
+    public RuntimeException translateGrant(TransactionCanceledException cancellation) {
+        List<String> codes = codes(cancellation);
+        if (failed(codes, EVENT_ITEM)) {
+            return EVENT_NOT_ACTIVE.build();
+        }
+        return failed(codes, SHARD_ITEM) && onlyOneFailed(codes)
+                ? new ShardSoldOutException()
+                : toConflictOrTechnical(codes, cancellation);
+    }
+
+    /**
      * Translates a cancelled change of status. Only the condition of the order is a business answer:
      * another copy changed it first. A failed defensive condition of the inventory is a data error.
      *

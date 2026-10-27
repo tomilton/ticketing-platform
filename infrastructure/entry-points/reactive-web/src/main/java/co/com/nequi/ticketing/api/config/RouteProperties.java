@@ -15,6 +15,7 @@ import org.springframework.validation.annotation.Validated;
  * @param availabilityStream the live availability of one event
  * @param orders             the collection of orders
  * @param orderById          one order
+ * @param complimentary      the complimentary tickets of one event
  */
 @Validated
 @ConfigurationProperties("routes")
@@ -25,7 +26,8 @@ public record RouteProperties(@NotBlank String basePath,
                               @NotBlank String batchAvailability,
                               @NotBlank String availabilityStream,
                               @NotBlank String orders,
-                              @NotBlank String orderById) {
+                              @NotBlank String orderById,
+                              @NotBlank String complimentary) {
 
     public String eventsPath() {
         return basePath + events;
@@ -53,5 +55,9 @@ public record RouteProperties(@NotBlank String basePath,
 
     public String orderByIdPath() {
         return basePath + orderById;
+    }
+
+    public String complimentaryPath() {
+        return basePath + complimentary;
     }
 }

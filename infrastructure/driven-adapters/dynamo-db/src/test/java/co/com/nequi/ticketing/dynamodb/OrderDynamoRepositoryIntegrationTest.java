@@ -161,8 +161,7 @@ class OrderDynamoRepositoryIntegrationTest {
     private Mono<Order> reserve(Event event, CustomerId customerId, Integer quantity, Instant now) {
         IdempotencyKey key = new IdempotencyKey(UUID.randomUUID());
         Order order = Order.place(OrderId.newId(), customerId, event.getEventId(), new Quantity(quantity), 0, now, TTL);
-        return idempotencyRepository.claim(customerId, key, RequestFingerprint.of(event.getEventId(),
-                        order.getQuantity()), now)
+        return idempotencyRepository.claim(customerId, key, RequestFingerprint.of(event.getEventId(), new Quantity(order.getQuantity())), now)
                 .cast(IdempotencyClaim.Granted.class)
                 .flatMap(granted -> orderRepository.reserve(order, event,
                         new ReservationContext(customerId, key, granted.lockToken(), 6), now));

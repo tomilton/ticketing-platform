@@ -23,7 +23,8 @@ class OrderStatusTest {
             "PENDING_CONFIRMATION, true, false, true",
             "SOLD, false, true, true",
             "CANCELLED, false, true, false",
-            "EXPIRED, false, true, false"})
+            "EXPIRED, false, true, false",
+            "COMPLIMENTARY, false, true, false"})
     void shouldDescribeStatusWhenItIsQueried(OrderStatus status, Boolean active, Boolean terminal, Boolean holds) {
         // When / Then
         assertThat(status.isActive()).isEqualTo(active);

@@ -22,6 +22,7 @@ public enum TicketStatus {
             case PENDING_CONFIRMATION -> PENDING_CONFIRMATION;
             case SOLD -> SOLD;
             case CANCELLED, EXPIRED -> AVAILABLE;
+            case COMPLIMENTARY -> COMPLIMENTARY;
         };
     }
 }

@@ -222,6 +222,16 @@ class IdempotencyIntegrationTest {
             public Flux<OrderId> findPendingPublication(Instant createdBefore) {
                 return orderRepository.findPendingPublication(createdBefore);
             }
+
+            @Override
+            public Mono<Order> grantComplimentary(Order order, Event event, Instant now) {
+                return orderRepository.grantComplimentary(order, event, now);
+            }
+
+            @Override
+            public Flux<OrderId> findExpired(Instant now, Integer limit) {
+                return orderRepository.findExpired(now, limit);
+            }
         };
     }
 

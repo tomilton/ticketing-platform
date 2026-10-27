@@ -1,0 +1,1419 @@
+{
+  "info": {
+    "name": "Ticketing Platform",
+    "description": "Flujos principales de la plataforma de ticketing (RFC-001 §10.1). Ejecutar con el entorno local.postman_environment.json contra docker compose up. Los flujos 2 y 5 requieren cambiar la configuración del worker o de la API como indica su descripción.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Venta aprobada",
+      "description": "Reserva, procesamiento asíncrono y venta. El worker debe estar con PAYMENT_SIMULATOR_MODE=APPROVE.",
+      "item": [
+        {
+          "name": "Crear evento (10 entradas)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Venta aprobada\",\n  \"venue\": {\n    \"name\": \"Movistar Arena\",\n    \"city\": \"Bogota\"\n  },\n  \"date\": \"{{eventDate}}\",\n  \"capacity\": 10\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created con TKS0002\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.json().meta.code).to.eql(\"TKS0002\");",
+                  "});",
+                  "pm.collectionVariables.set(\"eventSale\", pm.response.json().data.eventId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Comprar 2 entradas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Customer-Id",
+                "value": "{{customerId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{keySale}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventSale}}\",\n  \"quantity\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"keySale\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202\", () => pm.response.to.have.status(202));",
+                  "pm.test(\"Orden RESERVED con TKS0003\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.meta.code).to.eql(\"TKS0003\");",
+                  "  pm.expect(b.data.status).to.eql(\"RESERVED\");",
+                  "});",
+                  "pm.collectionVariables.set(\"orderSale\", pm.response.json().data.orderId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Disponibilidad tras reservar (2 apartadas)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventSale}}/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventSale}}",
+                "availability"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Contadores\", () => {",
+                  "  const d = pm.response.json().data;",
+                  "",
+                  "  pm.expect(d.available + d.reserved + d.sold + d.complimentary).to.eql(d.capacity);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar orden (SOLD tras el procesamiento)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Customer-Id",
+                "value": "{{customerId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderSale}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderSale}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 4000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Orden SOLD\", () => pm.expect(pm.response.json().data.status).to.eql(\"SOLD\"));",
+                  "pm.test(\"Entradas SOLD\", () => pm.response.json().data.tickets.forEach(t => pm.expect(t.status).to.eql(\"SOLD\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Disponibilidad final: 8 disponibles, 2 vendidas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventSale}}/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventSale}}",
+                "availability"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Contadores\", () => {",
+                  "  const d = pm.response.json().data;",
+                  "  pm.expect(d.available).to.eql(8);",
+                  "  pm.expect(d.reserved).to.eql(0);",
+                  "  pm.expect(d.sold).to.eql(2);",
+                  "  pm.expect(d.complimentary).to.eql(0);",
+                  "  pm.expect(d.available + d.reserved + d.sold + d.complimentary).to.eql(d.capacity);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Pago rechazado",
+      "description": "Requiere recrear el worker con PAYMENT_SIMULATOR_MODE=DECLINE (ver deployment/README.md). La orden termina CANCELLED y las entradas vuelven a estar disponibles.",
+      "item": [
+        {
+          "name": "Crear evento (5 entradas)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pago rechazado\",\n  \"venue\": {\n    \"name\": \"Movistar Arena\",\n    \"city\": \"Bogota\"\n  },\n  \"date\": \"{{eventDate}}\",\n  \"capacity\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created con TKS0002\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.json().meta.code).to.eql(\"TKS0002\");",
+                  "});",
+                  "pm.collectionVariables.set(\"eventDecline\", pm.response.json().data.eventId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Comprar 1 entrada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Customer-Id",
+                "value": "{{customerId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{keyDecline}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventDecline}}\",\n  \"quantity\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"keyDecline\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202\", () => pm.response.to.have.status(202));",
+                  "pm.test(\"Orden RESERVED con TKS0003\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.meta.code).to.eql(\"TKS0003\");",
+                  "  pm.expect(b.data.status).to.eql(\"RESERVED\");",
+                  "});",
+                  "pm.collectionVariables.set(\"orderDecline\", pm.response.json().data.orderId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar orden (CANCELLED)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Customer-Id",
+                "value": "{{customerId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderDecline}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderDecline}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 4000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Orden CANCELLED\", () => pm.expect(pm.response.json().data.status).to.eql(\"CANCELLED\"));",
+                  "pm.test(\"Entradas AVAILABLE\", () => pm.response.json().data.tickets.forEach(t => pm.expect(t.status).to.eql(\"AVAILABLE\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Disponibilidad recuperada: 5 disponibles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventDecline}}/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventDecline}}",
+                "availability"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Contadores\", () => {",
+                  "  const d = pm.response.json().data;",
+                  "  pm.expect(d.available).to.eql(5);",
+                  "  pm.expect(d.reserved).to.eql(0);",
+                  "  pm.expect(d.sold).to.eql(0);",
+                  "  pm.expect(d.available + d.reserved + d.sold + d.complimentary).to.eql(d.capacity);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Agotado (409)",
+      "item": [
+        {
+          "name": "Crear evento (2 entradas)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Agotado\",\n  \"venue\": {\n    \"name\": \"Movistar Arena\",\n    \"city\": \"Bogota\"\n  },\n  \"date\": \"{{eventDate}}\",\n  \"capacity\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created con TKS0002\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.json().meta.code).to.eql(\"TKS0002\");",
+                  "});",
+                  "pm.collectionVariables.set(\"eventSoldOut\", pm.response.json().data.eventId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Comprar las 2 entradas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Customer-Id",
+                "value": "{{customerId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{keySoldOut1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventSoldOut}}\",\n  \"quantity\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"keySoldOut1\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202\", () => pm.response.to.have.status(202));",
+                  "pm.test(\"Orden RESERVED con TKS0003\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.meta.code).to.eql(\"TKS0003\");",
+                  "  pm.expect(b.data.status).to.eql(\"RESERVED\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Otro cliente pide 1 más: agotado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Customer-Id",
+                "value": "{{otherCustomerId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{keySoldOut2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventSoldOut}}\",\n  \"quantity\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"keySoldOut2\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Código TKB0003\", () => pm.expect(pm.response.json().errors[0].code).to.eql(\"TKB0003\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Nunca hay disponibles negativos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventSoldOut}}/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventSoldOut}}",
+                "availability"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Contadores\", () => {",
+                  "  const d = pm.response.json().data;",
+                  "  pm.expect(d.available).to.eql(0);",
+                  "  pm.expect(d.available + d.reserved + d.sold + d.complimentary).to.eql(d.capacity);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Reintento idempotente",
+      "description": "La misma Idempotency-Key con el mismo body devuelve la respuesta original; con otro body responde TKB0005.",
+      "item": [
+        {
+          "name": "Crear evento (10 entradas)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Reintento idempotente\",\n  \"venue\": {\n    \"name\": \"Movistar Arena\",\n    \"city\": \"Bogota\"\n  },\n  \"date\": \"{{eventDate}}\",\n  \"capacity\": 10\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created con TKS0002\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.json().meta.code).to.eql(\"TKS0002\");",
+                  "});",
+                  "pm.collectionVariables.set(\"eventRetry\", pm.response.json().data.eventId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Comprar 2 (primera vez)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Customer-Id",
+                "value": "{{customerId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{keyRetry}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventRetry}}\",\n  \"quantity\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"keyRetry\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202\", () => pm.response.to.have.status(202));",
+                  "pm.test(\"Orden RESERVED con TKS0003\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.meta.code).to.eql(\"TKS0003\");",
+                  "  pm.expect(b.data.status).to.eql(\"RESERVED\");",
+                  "});",
+                  "pm.collectionVariables.set(\"orderRetry\", pm.response.json().data.orderId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Repetir la misma compra (misma llave)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Customer-Id",
+                "value": "{{customerId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{keyRetry}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventRetry}}\",\n  \"quantity\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202 con el mismo orderId\", () => {",
+                  "  pm.response.to.have.status(202);",
+                  "  pm.expect(pm.response.json().data.orderId).to.eql(pm.collectionVariables.get(\"orderRetry\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Misma llave, otro body: TKB0005",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Customer-Id",
+                "value": "{{customerId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{keyRetry}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventRetry}}\",\n  \"quantity\": 3\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"422 TKB0005\", () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().errors[0].code).to.eql(\"TKB0005\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Una sola reserva en el inventario",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventRetry}}/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventRetry}}",
+                "availability"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Contadores\", () => {",
+                  "  const d = pm.response.json().data;",
+                  "  pm.expect(d.available).to.eql(8);",
+                  "  pm.expect(d.available + d.reserved + d.sold + d.complimentary).to.eql(d.capacity);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Reserva que vence",
+      "description": "Manual: requiere que la orden no se procese. Recrear la API con SQS_ORDER_PLACED_QUEUE=missing y ORDERS_RESERVATION_TTL=PT20S, y el worker con ORDERS_REPUBLISH_INTERVAL=PT10M (override de la sección Ver una reserva que vence del README). Tras el TTL la orden aparece EXPIRED con entradas AVAILABLE; tras el barrido (30 s) la disponibilidad vuelve a 5.",
+      "item": [
+        {
+          "name": "Crear evento (5 entradas)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Reserva que vence\",\n  \"venue\": {\n    \"name\": \"Movistar Arena\",\n    \"city\": \"Bogota\"\n  },\n  \"date\": \"{{eventDate}}\",\n  \"capacity\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created con TKS0002\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.json().meta.code).to.eql(\"TKS0002\");",
+                  "});",
+                  "pm.collectionVariables.set(\"eventExpiry\", pm.response.json().data.eventId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reservar 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Customer-Id",
+                "value": "{{customerId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{keyExpiry}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventExpiry}}\",\n  \"quantity\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"keyExpiry\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202\", () => pm.response.to.have.status(202));",
+                  "pm.test(\"Orden RESERVED con TKS0003\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.meta.code).to.eql(\"TKS0003\");",
+                  "  pm.expect(b.data.status).to.eql(\"RESERVED\");",
+                  "});",
+                  "pm.collectionVariables.set(\"orderExpiry\", pm.response.json().data.orderId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tras 20 s: EXPIRED con entradas AVAILABLE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Customer-Id",
+                "value": "{{customerId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderExpiry}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderExpiry}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 21000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Orden EXPIRED\", () => pm.expect(pm.response.json().data.status).to.eql(\"EXPIRED\"));",
+                  "pm.test(\"Entradas AVAILABLE\", () => pm.response.json().data.tickets.forEach(t => pm.expect(t.status).to.eql(\"AVAILABLE\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tras el barrido (≤ 30 s más): 5 disponibles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventExpiry}}/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventExpiry}}",
+                "availability"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 35000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Contadores\", () => {",
+                  "  const d = pm.response.json().data;",
+                  "  pm.expect(d.available).to.eql(5);",
+                  "  pm.expect(d.reserved).to.eql(0);",
+                  "  pm.expect(d.available + d.reserved + d.sold + d.complimentary).to.eql(d.capacity);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Catálogo, disponibilidad y cortesías",
+      "description": "Listado, lote de disponibilidad y entradas de cortesía (admin; el rol se verifica en la feature 004). El flujo de webhook firmado del RFC llega con la feature 004.",
+      "item": [
+        {
+          "name": "Crear evento (10 entradas)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Catálogo y cortesías\",\n  \"venue\": {\n    \"name\": \"Movistar Arena\",\n    \"city\": \"Bogota\"\n  },\n  \"date\": \"{{eventDate}}\",\n  \"capacity\": 10\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created con TKS0002\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.json().meta.code).to.eql(\"TKS0002\");",
+                  "});",
+                  "pm.collectionVariables.set(\"eventCatalog\", pm.response.json().data.eventId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar eventos activos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events?limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 con items\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().data.items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar evento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventCatalog}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventCatalog}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 ACTIVE\", () => pm.expect(pm.response.json().data.status).to.eql(\"ACTIVE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Asignar 3 cortesías",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventCatalog}}/complimentary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventCatalog}}",
+                "complimentary"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"quantity\": 3\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 COMPLIMENTARY\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.json().data.status).to.eql(\"COMPLIMENTARY\");",
+                  "});",
+                  "pm.collectionVariables.set(\"orderComplimentary\", pm.response.json().data.orderId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar orden de cortesía",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Customer-Id",
+                "value": "{{customerId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderComplimentary}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderComplimentary}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Orden COMPLIMENTARY\", () => pm.expect(pm.response.json().data.status).to.eql(\"COMPLIMENTARY\"));",
+                  "pm.test(\"Entradas COMPLIMENTARY\", () => pm.response.json().data.tickets.forEach(t => pm.expect(t.status).to.eql(\"COMPLIMENTARY\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Disponibilidad: 7 disponibles, 3 de cortesía",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventCatalog}}/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventCatalog}}",
+                "availability"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Contadores\", () => {",
+                  "  const d = pm.response.json().data;",
+                  "  pm.expect(d.available).to.eql(7);",
+                  "  pm.expect(d.complimentary).to.eql(3);",
+                  "  pm.expect(d.available + d.reserved + d.sold + d.complimentary).to.eql(d.capacity);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Disponibilidad por lote",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/availability?ids={{eventCatalog}},{{eventSale}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "availability"
+              ],
+              "query": [
+                {
+                  "key": "ids",
+                  "value": "{{eventCatalog}},{{eventSale}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 con resultados\", () => pm.expect(pm.response.json().data.length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Orden de otro cliente: TKB0002",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Customer-Id",
+                "value": "{{otherCustomerId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderComplimentary}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderComplimentary}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 TKB0002\", () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.json().errors[0].code).to.eql(\"TKB0002\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. Manual: disponibilidad en vivo (SSE)",
+      "description": "Manual: el stream queda abierto hasta AVAILABILITY_STREAM_MAX_DURATION, así que no se corre con Newman. Abrir en el navegador o con curl -N después del flujo 6 (usa eventCatalog).",
+      "item": [
+        {
+          "name": "Suscripción en vivo (SSE, abrir en navegador o curl -N)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventCatalog}}/availability/stream",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventCatalog}}",
+                "availability",
+                "stream"
+              ]
+            },
+            "description": "Postman no mantiene abierto un stream SSE en la colección. Para verlo: curl -N {{baseUrl}}/events/<eventId>/availability/stream"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "eventSale",
+      "value": ""
+    },
+    {
+      "key": "orderSale",
+      "value": ""
+    },
+    {
+      "key": "keySale",
+      "value": ""
+    },
+    {
+      "key": "eventDecline",
+      "value": ""
+    },
+    {
+      "key": "orderDecline",
+      "value": ""
+    },
+    {
+      "key": "keyDecline",
+      "value": ""
+    },
+    {
+      "key": "eventSoldOut",
+      "value": ""
+    },
+    {
+      "key": "keySoldOut1",
+      "value": ""
+    },
+    {
+      "key": "keySoldOut2",
+      "value": ""
+    },
+    {
+      "key": "eventRetry",
+      "value": ""
+    },
+    {
+      "key": "orderRetry",
+      "value": ""
+    },
+    {
+      "key": "keyRetry",
+      "value": ""
+    },
+    {
+      "key": "eventExpiry",
+      "value": ""
+    },
+    {
+      "key": "orderExpiry",
+      "value": ""
+    },
+    {
+      "key": "keyExpiry",
+      "value": ""
+    },
+    {
+      "key": "eventCatalog",
+      "value": ""
+    },
+    {
+      "key": "orderComplimentary",
+      "value": ""
+    }
+  ]
+}

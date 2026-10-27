@@ -72,7 +72,7 @@ class RepublishPendingOrdersUseCaseTest {
                 .expectNext(2L)
                 .verifyComplete();
         verify(orderEventPublisher).publishOrderPlaced(argThat(message -> message.orderId().equals(first.getOrderId())
-                && message.eventId().equals(first.getEventId()) && message.quantity().equals(first.getQuantity())
+                && message.eventId().equals(first.getEventId()) && message.quantity().value().equals(first.getQuantity())
                 && message.occurredAt().equals(NOW)));
         verify(orderRepository).markPublished(first.getOrderId(), NOW);
         verify(orderRepository).markPublished(second.getOrderId(), NOW);

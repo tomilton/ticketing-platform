@@ -5,6 +5,27 @@ Todos los cambios relevantes del proyecto se registran en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el proyecto usa
 [versionamiento semántico](https://semver.org/lang/es/).
 
+## [1.2.0] - Unreleased
+
+### Added
+
+- RF6, liberación automática: el worker barre cada 30 s (`SWEEP_INTERVAL`) las reservas `RESERVED` y
+  `PENDING_CONFIRMATION` vencidas por el índice disperso `expiring-reservations`, las deja en
+  `EXPIRED`, devuelve sus entradas al inventario y al límite del cliente, y pide el reembolso de las
+  que esperaban el pago. Una sola réplica barre en cada ciclo gracias a un lock con lease en la tabla
+  `scheduler_locks`; cada liberación sigue siendo condicional, así que nunca mueve el inventario dos
+  veces. Métrica `ticketing.orders.sweep.released`.
+- Entradas de cortesía: `POST /events/{eventId}/complimentary` asigna de 1 a 50 entradas
+  (`COMPLIMENTARY_MAX_PER_GRANT`) de un evento a la venta en una orden final `COMPLIMENTARY`, en una
+  sola transacción que las mueve de disponibles a cortesía. No cuentan para el límite del cliente.
+- Colección de Postman con los 6 flujos del RFC y su entorno local (`postman/`).
+
+### Changed
+
+- README final con arquitectura, instalación, configuración, ejemplos, decisiones y limitaciones.
+- RFC público actualizado: lock del barrido con escritura condicional en lugar de ShedLock, outbox
+  liviano, idempotencia en dos fases y estado de implementación por feature.
+
 ## [1.1.0] - Unreleased
 
 ### Added

@@ -1,6 +1,8 @@
 dependencies {
     testImplementation 'org.springframework.boot:spring-boot-test'
     compileOnly 'org.springframework.boot:spring-boot-starter'
+    compileOnly 'io.micrometer:micrometer-core'
+    testImplementation 'io.micrometer:micrometer-core'
     testImplementation 'org.springframework.boot:spring-boot-starter'
     testImplementation "io.projectreactor.tools:blockhound:${blockhoundVersion}"
     testImplementation "io.projectreactor.tools:blockhound-junit-platform:${blockhoundVersion}"

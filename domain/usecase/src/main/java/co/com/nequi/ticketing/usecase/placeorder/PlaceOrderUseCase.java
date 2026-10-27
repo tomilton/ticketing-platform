@@ -13,6 +13,7 @@ import co.com.nequi.ticketing.model.order.Order;
 import co.com.nequi.ticketing.model.order.OrderId;
 import co.com.nequi.ticketing.model.order.PlacementOutcome;
 import co.com.nequi.ticketing.model.order.PlacementOutcome.Accepted;
+import co.com.nequi.ticketing.model.order.Quantity;
 import co.com.nequi.ticketing.model.order.ReservationContext;
 import co.com.nequi.ticketing.model.order.command.PlaceOrderCommand;
 import co.com.nequi.ticketing.model.order.event.OrderPlacedMessage;
@@ -111,7 +112,7 @@ public class PlaceOrderUseCase {
      */
     private Mono<Void> publish(Order order, Instant now) {
         OrderPlacedMessage message = new OrderPlacedMessage(UUID.randomUUID(), order.getOrderId(),
-                order.getEventId(), order.getQuantity(), order.getCreatedAt());
+                order.getEventId(), new Quantity(order.getQuantity()), order.getCreatedAt());
         return orderEventPublisher.publishOrderPlaced(message)
                 .then(Mono.defer(() -> orderRepository.markPublished(order.getOrderId(), now)))
                 .onErrorResume(error -> Mono.empty());
