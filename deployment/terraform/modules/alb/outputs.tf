@@ -32,3 +32,8 @@ output "vpc_link_security_group_id" {
   description = "Security group of the VPC Link of API Gateway."
   value       = aws_security_group.vpc_link.id
 }
+
+output "alb_dns_name" {
+  description = "DNS name of the internal load balancer, the domain of the CloudFront VPC origin."
+  value       = aws_lb.this.dns_name
+}
