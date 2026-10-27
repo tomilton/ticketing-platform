@@ -58,7 +58,14 @@ JaCoCo y PIT.
 
 - Docker con Docker Compose (también lo usan las pruebas de integración, vía Testcontainers).
 - JDK 25 (Temurin) solo para compilar o correr las pruebas fuera de Docker. Gradle se descarga con
-  el wrapper.
+  el wrapper. El repositorio no versiona `gradle/wrapper/gradle-wrapper.jar` (es un binario); antes del
+  primer `./gradlew` se regenera sin instalar Gradle:
+
+  ```bash
+  docker run --rm -v "$PWD:/w" -w /w gradle:9.8.2-jdk25 gradle wrapper --gradle-version 9.8.2
+  ```
+
+  En PowerShell, `${PWD}` en lugar de `$PWD`. Con Gradle instalado basta `gradle wrapper`.
 - `curl` y, opcionalmente, `uuidgen` para los ejemplos.
 
 ## Instalación y ejecución con Docker
