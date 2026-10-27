@@ -66,8 +66,8 @@ subprojects {
     ext['jackson-bom.version'] = "3.2.4"
 }
 
-def applicationYamlFiles = files('applications/app-service/src/main/resources/application.yaml',
-        'applications/app-service/src/main/resources/application-local.yaml')
+def deployedYamlFile = file('applications/app-service/src/main/resources/application.yaml')
+def applicationYamlFiles = files(deployedYamlFile, 'applications/app-service/src/main/resources/application-local.yaml')
 def environmentExampleFile = file('deployment/.env.example')
 // The task definition of the ecs-service module is where the application variables reach AWS.
 def terraformFiles = fileTree('deployment/terraform/modules/ecs-service') { include 'environment.tf' }
@@ -77,7 +77,7 @@ def terraformFiles = fileTree('deployment/terraform/modules/ecs-service') { incl
 tasks.register('verifyEnvironmentParity') {
     group = 'verification'
     description = 'Checks that application*.yaml and deployment/.env.example declare the same variables'
-    inputs.files(applicationYamlFiles, environmentExampleFile)
+    inputs.files(applicationYamlFiles, environmentExampleFile, terraformFiles)
     def allowedOnlyInEnvironment = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'SPRING_PROFILES_ACTIVE', 'SONAR_PORT',
             'SQS_MAX_RECEIVE_COUNT', 'SQS_VISIBILITY_TIMEOUT_SECONDS', 'WORKER_PORT'] as Set
     doLast {
@@ -90,7 +90,8 @@ tasks.register('verifyEnvironmentParity') {
         def missingInYaml = environmentVariables - yamlVariables - allowedOnlyInEnvironment
         if (!terraformFiles.isEmpty()) {
             def terraformText = terraformFiles.files*.text.join('\n')
-            missingInEnvironment += yamlVariables.findAll { !terraformText.contains(it) }
+            def deployedVariables = (deployedYamlFile.text =~ placeholder).collect { it[1] } as Set
+            missingInEnvironment += deployedVariables.findAll { !terraformText.contains(it) }
         }
         if (missingInEnvironment || missingInYaml) {
             throw new GradleException("Environment parity failed. Missing in .env.example or Terraform: "
