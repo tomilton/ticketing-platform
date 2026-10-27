@@ -1,16 +1,20 @@
 package co.com.nequi.ticketing.api.helpers;
 
+import co.com.nequi.ticketing.api.config.JsonMapperConfig;
+import co.com.nequi.ticketing.api.messages.exception.ValidationException;
 import co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage;
 import co.com.nequi.ticketing.commons.exception.TechnicalException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.MediaType;
+import org.springframework.http.codec.json.JacksonJsonDecoder;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.web.reactive.function.server.HandlerStrategies;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import reactor.test.StepVerifier;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 
@@ -46,6 +50,24 @@ class RequestHelperTest {
                 .verify();
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"quantity\":2.5}", "{\"quantity\":\"two\"}"})
+    void shouldFailWithValidationErrorNamingFieldWhenIntegerFieldHasAnotherValue(String body) {
+        // When / Then
+        StepVerifier.create(RequestHelper.bodyToMonoOrFailWhenEmpty(strictRequest(body), QuantityDto.class))
+                .expectErrorSatisfies(error -> assertThat(error).isInstanceOf(ValidationException.class)
+                        .hasMessageContaining("quantity"))
+                .verify();
+    }
+
+    @Test
+    void shouldKeepInvalidJsonWhenBodyIsBrokenAndDecimalsAreRejected() {
+        // When / Then
+        StepVerifier.create(RequestHelper.bodyToMonoOrFailWhenEmpty(strictRequest("{\"quantity\":"), QuantityDto.class))
+                .expectErrorSatisfies(error -> assertTechnicalError(error, TechnicalErrorMessage.INVALID_JSON))
+                .verify();
+    }
+
     private static void assertTechnicalError(Throwable error, TechnicalErrorMessage expected) {
         assertThat(error).isInstanceOf(TechnicalException.class)
                 .extracting(exception -> ((TechnicalException) exception).getErrorMessage())
@@ -60,6 +82,18 @@ class RequestHelperTest {
                 HandlerStrategies.withDefaults().messageReaders());
     }
 
+    private static ServerRequest strictRequest(String body) {
+        JsonMapper.Builder builder = JsonMapper.builder();
+        new JsonMapperConfig().integerFieldsWithoutDecimals().customize(builder);
+        JacksonJsonDecoder decoder = new JacksonJsonDecoder(builder.build());
+        MockServerHttpRequest httpRequest = MockServerHttpRequest.post("/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body);
+        return ServerRequest.create(MockServerWebExchange.from(httpRequest),
+                HandlerStrategies.builder().codecs(codecs -> codecs.defaultCodecs().jacksonJsonDecoder(decoder))
+                        .build().messageReaders());
+    }
+
     private static ServerRequest requestWithoutBody() {
         MockServerHttpRequest httpRequest = MockServerHttpRequest.post("/events")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -69,5 +103,8 @@ class RequestHelperTest {
     }
 
     record SampleDto(String name, Instant date) {
+    }
+
+    record QuantityDto(Integer quantity) {
     }
 }
