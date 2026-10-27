@@ -1,5 +1,6 @@
 package co.com.nequi.ticketing.api.security;
 
+import co.com.nequi.ticketing.api.support.TestTokens;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -32,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Research R-02 of feature 004: the deployments verify the tokens with the JWKS of the identity
- * provider.
+ * provider, and the development secret is accepted only with the {@code local} profile.
  */
 class JwtDecoderConfigTest {
 
@@ -94,9 +95,43 @@ class JwtDecoderConfigTest {
         });
     }
 
+    @Test
+    void shouldFailToStartWhenLocalModeIsUsedWithoutLocalProfile() {
+        runner.withPropertyValues(localProperties()).run(context -> assertThat(context).hasFailed()
+                .getFailure().rootCause().hasMessageContaining("only with the local profile"));
+    }
+
+    @Test
+    void shouldFailToStartWhenLocalModeHasNoSecret() {
+        runner.withPropertyValues("spring.profiles.active=local", "security.jwt.mode=LOCAL_HS256",
+                        "security.jwt.jwk-set-uri=http://localhost/unused")
+                .run(context -> assertThat(context).hasFailed()
+                        .getFailure().rootCause().hasMessageContaining("local-secret is required"));
+    }
+
+    @Test
+    void shouldDecodeDevelopmentTokenWhenLocalModeRunsWithLocalProfile() {
+        runner.withPropertyValues(localProperties()).withPropertyValues("spring.profiles.active=local")
+                .run(context -> {
+                    // When
+                    Mono<Jwt> decoded = context.getBean(ReactiveJwtDecoder.class).decode(TestTokens.customer());
+
+                    // Then
+                    StepVerifier.create(decoded)
+                            .assertNext(jwt -> assertThat(jwt.getSubject()).isEqualTo(TestTokens.CUSTOMER.toString()))
+                            .expectComplete()
+                            .verify(TIMEOUT);
+                });
+    }
+
     private static String[] jwksProperties() {
         return new String[]{"security.jwt.mode=JWKS",
                 "security.jwt.jwk-set-uri=http://localhost:" + jwksServer.port() + JWKS_PATH};
+    }
+
+    private static String[] localProperties() {
+        return new String[]{"security.jwt.mode=LOCAL_HS256", "security.jwt.jwk-set-uri=http://localhost/unused",
+                "security.jwt.local-secret=" + TestTokens.SECRET};
     }
 
     private static String rs256Token(String audience) throws JOSEException {
