@@ -1,0 +1,53 @@
+server:
+  port: 0
+spring:
+  application:
+    name: ticketing-platform-test
+  reactor:
+    context-propagation: auto
+logging:
+  structured:
+    format:
+      console: ecs
+  level:
+    co.com.nequi.ticketing.dynamodb: DEBUG
+app:
+  role: api
+  cors:
+    allowed-origins: http://localhost:4200
+routes:
+  base-path: /api/v1
+  events: /events
+  event-by-id: /events/{eventId}
+  event-availability: /events/{eventId}/availability
+  batch-availability: /events/availability
+  availability-stream: /events/{eventId}/availability/stream
+adapters:
+  dynamodb:
+    api-call-timeout: 5s
+    api-call-attempt-timeout: 2s
+    batch-concurrency: 4
+    health-check-timeout: 2s
+inventory:
+  shard-count: 3
+availability:
+  poll-interval: 1s
+  batch-max-ids: 100
+  stream:
+    heartbeat: 15s
+    max-duration: 30m
+    retry: 1s
+pagination:
+  events:
+    default-size: 20
+    max-size: 100
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-components: always
