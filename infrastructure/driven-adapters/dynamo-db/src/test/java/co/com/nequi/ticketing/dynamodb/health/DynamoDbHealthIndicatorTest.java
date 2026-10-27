@@ -39,7 +39,9 @@ class DynamoDbHealthIndicatorTest {
     void setUp() {
         DynamoDbProperties properties = new DynamoDbProperties("us-east-1", null, "events-table",
                 "inventory-table", "by-status-date", Duration.ofSeconds(2), Duration.ofMillis(500), 4,
-                HEALTH_CHECK_TIMEOUT);
+                HEALTH_CHECK_TIMEOUT,
+                "orders", "order_audit", "idempotency", "customer_event_limits", "expiring-reservations",
+                "pending-publication", 10, Duration.ofSeconds(5));
         indicator = new DynamoDbHealthIndicator(client, properties);
     }
 

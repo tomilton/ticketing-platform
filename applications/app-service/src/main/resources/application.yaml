@@ -20,6 +20,8 @@ routes:
   event-availability: ${ROUTES_EVENT_AVAILABILITY}
   batch-availability: ${ROUTES_BATCH_AVAILABILITY}
   availability-stream: ${ROUTES_AVAILABILITY_STREAM}
+  orders: ${ROUTES_ORDERS}
+  order-by-id: ${ROUTES_ORDER_BY_ID}
 adapters:
   dynamodb:
     region: ${AWS_REGION}
@@ -30,6 +32,30 @@ adapters:
     api-call-attempt-timeout: ${DYNAMODB_API_CALL_ATTEMPT_TIMEOUT}
     batch-concurrency: ${DYNAMODB_BATCH_CONCURRENCY}
     health-check-timeout: ${DYNAMODB_HEALTH_CHECK_TIMEOUT}
+    orders-table: ${DYNAMODB_ORDERS_TABLE}
+    order-audit-table: ${DYNAMODB_ORDER_AUDIT_TABLE}
+    idempotency-table: ${DYNAMODB_IDEMPOTENCY_TABLE}
+    customer-limits-table: ${DYNAMODB_CUSTOMER_LIMITS_TABLE}
+    expiring-reservations-index: ${DYNAMODB_EXPIRING_RESERVATIONS_INDEX}
+    pending-publication-index: ${DYNAMODB_PENDING_PUBLICATION_INDEX}
+    transaction-conflict-retries: ${DYNAMODB_TRANSACTION_CONFLICT_RETRIES}
+    reserve-timeout: ${DYNAMODB_RESERVE_TIMEOUT}
+  sqs:
+    sender:
+      region: ${AWS_REGION}
+      order-placed-queue: ${SQS_ORDER_PLACED_QUEUE}
+      send-timeout: ${SQS_SEND_TIMEOUT}
+    listener:
+      region: ${AWS_REGION}
+      order-placed-queue: ${SQS_ORDER_PLACED_QUEUE}
+      order-placed-dlq: ${SQS_ORDER_PLACED_DLQ}
+      wait-time: ${SQS_WAIT_TIME}
+      max-messages: ${SQS_MAX_MESSAGES}
+      max-concurrency: ${SQS_MAX_CONCURRENCY}
+  payment:
+    mode: ${PAYMENT_SIMULATOR_MODE}
+    latency: ${PAYMENT_SIMULATOR_LATENCY}
+    timeout: ${PAYMENT_TIMEOUT}
 inventory:
   shard-count: ${INVENTORY_SHARD_COUNT}
 availability:
@@ -39,6 +65,16 @@ availability:
     heartbeat: ${AVAILABILITY_STREAM_HEARTBEAT}
     max-duration: ${AVAILABILITY_STREAM_MAX_DURATION}
     retry: ${AVAILABILITY_STREAM_RETRY}
+orders:
+  max-tickets-per-order: ${ORDERS_MAX_TICKETS_PER_ORDER}
+  max-tickets-per-customer: ${ORDERS_MAX_TICKETS_PER_CUSTOMER}
+  reservation-ttl: ${ORDERS_RESERVATION_TTL}
+  republish-interval: ${ORDERS_REPUBLISH_INTERVAL}
+  republish-grace: ${ORDERS_REPUBLISH_GRACE}
+  republish-concurrency: ${ORDERS_REPUBLISH_CONCURRENCY}
+idempotency:
+  ttl: ${IDEMPOTENCY_TTL}
+  lease: ${IDEMPOTENCY_LEASE}
 pagination:
   events:
     default-size: ${EVENTS_PAGE_DEFAULT_SIZE}

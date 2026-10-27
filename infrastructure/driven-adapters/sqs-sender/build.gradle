@@ -1,0 +1,19 @@
+dependencies {
+    compileOnly 'io.micrometer:context-propagation'
+    testImplementation 'io.micrometer:context-propagation'
+    testImplementation 'tools.jackson.core:jackson-databind'
+    testImplementation 'org.springframework.boot:spring-boot-test'
+    implementation project(':commons')
+    implementation project(':sqs-commons')
+    implementation 'software.amazon.awssdk:sqs'
+    implementation 'software.amazon.awssdk:netty-nio-client'
+    compileOnly 'org.springframework.boot:spring-boot-starter'
+    compileOnly 'jakarta.validation:jakarta.validation-api'
+    testImplementation 'org.springframework.boot:spring-boot-starter'
+    testImplementation "io.projectreactor.tools:blockhound:${blockhoundVersion}"
+    testImplementation "io.projectreactor.tools:blockhound-junit-platform:${blockhoundVersion}"
+}
+
+tasks.named('test') {
+    jvmArgs '-XX:+AllowRedefinitionToAddDeleteMethods', '-XX:+EnableDynamicAgentLoading'
+}

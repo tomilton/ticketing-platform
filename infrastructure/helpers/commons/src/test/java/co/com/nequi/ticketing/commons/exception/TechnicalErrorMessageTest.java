@@ -13,7 +13,11 @@ class TechnicalErrorMessageTest {
             "VALIDATION_ERROR, TKT0001, false",
             "INVALID_JSON, TKT0002, false",
             "EMPTY_REQUEST_BODY, TKT0003, false",
+            "MISSING_IDEMPOTENCY_KEY, TKT0004, false",
             "DYNAMODB_ERROR, TKT0005, true",
+            "SQS_ERROR, TKT0006, true",
+            "PAYMENT_GATEWAY_ERROR, TKT0007, true",
+            "INVALID_MESSAGE, TKT0008, false",
             "UNEXPECTED_ERROR, TKT0009, true"
     })
     void shouldExposeCodeAndRetryableWhenMessageIsRead(TechnicalErrorMessage message, String code,

@@ -1,7 +1,9 @@
 package co.com.nequi.ticketing.config;
 
 import co.com.nequi.ticketing.model.config.AvailabilityWatchSettings;
+import co.com.nequi.ticketing.model.config.IdempotencySettings;
 import co.com.nequi.ticketing.model.config.InventorySettings;
+import co.com.nequi.ticketing.model.config.OrderSettings;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -15,7 +17,8 @@ import java.time.Duration;
  */
 @Configuration
 @EnableConfigurationProperties({BusinessSettingsConfig.InventoryProperties.class,
-        BusinessSettingsConfig.AvailabilityProperties.class})
+        BusinessSettingsConfig.AvailabilityProperties.class, BusinessSettingsConfig.OrderProperties.class,
+        BusinessSettingsConfig.IdempotencyProperties.class})
 public class BusinessSettingsConfig {
 
     @Bean
@@ -26,6 +29,17 @@ public class BusinessSettingsConfig {
     @Bean
     public AvailabilityWatchSettings availabilityWatchSettings(AvailabilityProperties properties) {
         return new AvailabilityWatchSettings(properties.pollInterval());
+    }
+
+    @Bean
+    public OrderSettings orderSettings(OrderProperties properties) {
+        return new OrderSettings(properties.maxTicketsPerOrder(), properties.maxTicketsPerCustomer(),
+                properties.reservationTtl(), properties.republishGrace(), properties.republishConcurrency());
+    }
+
+    @Bean
+    public IdempotencySettings idempotencySettings(IdempotencyProperties properties) {
+        return new IdempotencySettings(properties.ttl(), properties.lease());
     }
 
     /**
@@ -44,5 +58,29 @@ public class BusinessSettingsConfig {
      */
     @ConfigurationProperties("availability")
     public record AvailabilityProperties(Duration pollInterval) {
+    }
+
+    /**
+     * The business part of the {@code orders} block.
+     *
+     * @param maxTicketsPerOrder    the tickets of one order
+     * @param maxTicketsPerCustomer the tickets a customer can hold for one event
+     * @param reservationTtl        how long a reservation holds its tickets
+     * @param republishGrace        how old an unpublished order must be to publish it again
+     * @param republishConcurrency  the orders published again at the same time
+     */
+    @ConfigurationProperties("orders")
+    public record OrderProperties(Integer maxTicketsPerOrder, Integer maxTicketsPerCustomer, Duration reservationTtl,
+                                  Duration republishGrace, Integer republishConcurrency) {
+    }
+
+    /**
+     * The {@code idempotency} block.
+     *
+     * @param ttl   how long a key is kept
+     * @param lease how long a request holds a key
+     */
+    @ConfigurationProperties("idempotency")
+    public record IdempotencyProperties(Duration ttl, Duration lease) {
     }
 }

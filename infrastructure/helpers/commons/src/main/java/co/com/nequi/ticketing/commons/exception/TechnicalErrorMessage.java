@@ -15,9 +15,17 @@ public enum TechnicalErrorMessage {
     VALIDATION_ERROR("TKT0001", "Error while validating data", Boolean.FALSE),
     INVALID_JSON("TKT0002", "Request body is not valid JSON", Boolean.FALSE),
     EMPTY_REQUEST_BODY("TKT0003", "Request body is empty", Boolean.FALSE),
+    MISSING_IDEMPOTENCY_KEY("TKT0004", "Idempotency-Key header is missing or is not a UUID", Boolean.FALSE),
 
     // Infrastructure
     DYNAMODB_ERROR("TKT0005", "Database error", Boolean.TRUE),
+    SQS_ERROR("TKT0006", "Message queue error", Boolean.TRUE),
+    PAYMENT_GATEWAY_ERROR("TKT0007", "Payment gateway error", Boolean.TRUE),
+
+    // Messages
+    INVALID_MESSAGE("TKT0008", "Invalid queue message", Boolean.FALSE),
+
+    // Other
     UNEXPECTED_ERROR("TKT0009", "Unexpected error", Boolean.TRUE);
 
     private final String code;

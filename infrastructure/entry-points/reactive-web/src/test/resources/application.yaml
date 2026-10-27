@@ -9,6 +9,8 @@ routes:
   event-availability: /events/{eventId}/availability
   batch-availability: /events/availability
   availability-stream: /events/{eventId}/availability/stream
+  orders: /orders
+  order-by-id: /orders/{orderId}
 pagination:
   events:
     default-size: 20

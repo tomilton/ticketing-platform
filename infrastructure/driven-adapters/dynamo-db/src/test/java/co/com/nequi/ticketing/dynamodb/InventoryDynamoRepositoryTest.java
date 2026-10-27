@@ -57,7 +57,9 @@ class InventoryDynamoRepositoryTest {
     void setUp() {
         DynamoDbProperties properties = new DynamoDbProperties("us-east-1", null, "events", INVENTORY_TABLE,
                 "by-status-date", Duration.ofSeconds(2), Duration.ofMillis(500), BATCH_CONCURRENCY,
-                Duration.ofSeconds(1));
+                Duration.ofSeconds(1),
+                "orders", "order_audit", "idempotency", "customer_event_limits", "expiring-reservations",
+                "pending-publication", 10, Duration.ofSeconds(5));
         repository = new InventoryDynamoRepository(client, properties, shardMapper, new DynamoDbBatchReader(client));
     }
 

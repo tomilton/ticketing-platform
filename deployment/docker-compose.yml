@@ -28,6 +28,20 @@ services:
       localstack:
         condition: service_healthy
 
+  ticketing-worker:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    ports:
+      - "${WORKER_PORT}:${APP_PORT}"
+    env_file: .env
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      APP_ROLE: worker
+    depends_on:
+      localstack:
+        condition: service_healthy
+
   sonarqube:
     image: sonarqube:26.10.0.133078-community
     profiles: ["quality"]

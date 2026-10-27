@@ -22,12 +22,38 @@ routes:
   event-availability: /events/{eventId}/availability
   batch-availability: /events/availability
   availability-stream: /events/{eventId}/availability/stream
+  orders: /orders
+  order-by-id: /orders/{orderId}
 adapters:
   dynamodb:
     api-call-timeout: 5s
     api-call-attempt-timeout: 2s
     batch-concurrency: 4
     health-check-timeout: 2s
+    orders-table: orders
+    order-audit-table: order_audit
+    idempotency-table: idempotency
+    customer-limits-table: customer_event_limits
+    expiring-reservations-index: expiring-reservations
+    pending-publication-index: pending-publication
+    transaction-conflict-retries: 10
+    reserve-timeout: 5s
+  sqs:
+    sender:
+      region: us-east-1
+      order-placed-queue: order-placed
+      send-timeout: 2s
+    listener:
+      region: us-east-1
+      order-placed-queue: order-placed
+      order-placed-dlq: order-placed-dlq
+      wait-time: 1s
+      max-messages: 10
+      max-concurrency: 4
+  payment:
+    mode: APPROVE
+    latency: 0s
+    timeout: 2s
 inventory:
   shard-count: 3
 availability:
@@ -37,6 +63,16 @@ availability:
     heartbeat: 15s
     max-duration: 30m
     retry: 1s
+orders:
+  max-tickets-per-order: 6
+  max-tickets-per-customer: 6
+  reservation-ttl: 10m
+  republish-interval: 10s
+  republish-grace: 5s
+  republish-concurrency: 4
+idempotency:
+  ttl: 24h
+  lease: 10s
 pagination:
   events:
     default-size: 20

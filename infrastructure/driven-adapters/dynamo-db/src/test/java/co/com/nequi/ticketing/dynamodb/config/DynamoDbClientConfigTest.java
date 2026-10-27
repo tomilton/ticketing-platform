@@ -73,6 +73,8 @@ class DynamoDbClientConfigTest {
 
     private static DynamoDbProperties properties(String endpoint) {
         return new DynamoDbProperties("us-east-1", endpoint, "events", "inventory", "by-status-date",
-                API_CALL_TIMEOUT, API_CALL_ATTEMPT_TIMEOUT, 4, Duration.ofSeconds(1));
+                API_CALL_TIMEOUT, API_CALL_ATTEMPT_TIMEOUT, 4, Duration.ofSeconds(1),
+                "orders", "order_audit", "idempotency", "customer_event_limits", "expiring-reservations",
+                "pending-publication", 10, Duration.ofSeconds(5));
     }
 }

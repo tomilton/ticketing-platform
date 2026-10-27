@@ -22,7 +22,8 @@ cp .env.example .env
 docker compose up
 ```
 
-Levanta LocalStack (DynamoDB, SQS y Secrets Manager) con sus recursos y la API. Los pasos
+Levanta LocalStack (DynamoDB, SQS y Secrets Manager) con sus recursos, la API (`APP_ROLE=api`,
+puerto 8080) y el worker (`APP_ROLE=worker`, puerto 8081), que procesa las órdenes aceptadas. Los pasos
 detallados están en [GETTINGSTARTED.md](GETTINGSTARTED.md).
 
 ## API
@@ -52,6 +53,26 @@ curl -s "$BASE/events/availability?ids={eventId1},{eventId2}"
 
 # Disponibilidad en vivo (SSE): estado inicial, luego solo cambios, keepalive cada 15 s
 curl -N $BASE/events/{eventId}/availability/stream
+
+# Comprar de 1 a 6 entradas: reserva por 10 minutos y acepta la orden (202, TKS0003).
+# Repetir con la misma Idempotency-Key y el mismo body devuelve exactamente la misma respuesta.
+curl -s -X POST $BASE/orders -H 'Content-Type: application/json' \
+  -H 'X-Customer-Id: 11111111-1111-4111-8111-111111111111' \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"eventId":"{eventId}","quantity":2}'
+
+# Consultar una orden propia con el estado de cada entrada (200); la de otro cliente responde 404
+curl -s $BASE/orders/{orderId} -H 'X-Customer-Id: 11111111-1111-4111-8111-111111111111'
+```
+
+El worker consume la cola `order-placed`, cobra con el simulador de pagos y deja la orden en
+`SOLD`, `CANCELLED` o `EXPIRED`. Sus logs y la cola de mensajes fallidos se revisan así:
+
+```bash
+cd deployment
+docker compose logs -f ticketing-worker
+docker compose exec localstack awslocal sqs receive-message --message-attribute-names All \
+  --queue-url http://localhost:4566/000000000000/order-placed-dlq
 ```
 
 ## Build y pruebas

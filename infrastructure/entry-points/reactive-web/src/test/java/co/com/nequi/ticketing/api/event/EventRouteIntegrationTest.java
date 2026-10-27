@@ -1,6 +1,7 @@
 package co.com.nequi.ticketing.api.event;
 
 import co.com.nequi.ticketing.api.config.EventPaginationProperties;
+import co.com.nequi.ticketing.api.config.JsonMapperConfig;
 import co.com.nequi.ticketing.api.config.RouteProperties;
 import co.com.nequi.ticketing.api.event.mapper.EventMapManagement;
 import co.com.nequi.ticketing.api.event.mapper.EventMapperImpl;
@@ -90,6 +91,13 @@ class EventRouteIntegrationTest {
     void shouldRejectWithValidationErrorWhenCapacityIsOutOfRange(String capacity) {
         // When / Then
         assertError(post(body("Rock", "Arena", "Bogota", DATE.toString(), capacity)), 400, "TKT0001");
+        verifyNoInteractions(createEventUseCase);
+    }
+
+    @Test
+    void shouldRejectNamingCapacityWhenCapacityIsNotAnInteger() {
+        // When / Then
+        assertErrorNaming(post(body("Rock", "Arena", "Bogota", DATE.toString(), "2.5")), "capacity");
         verifyNoInteractions(createEventUseCase);
     }
 
@@ -271,7 +279,7 @@ class EventRouteIntegrationTest {
     @EnableConfigurationProperties({RouteProperties.class, EventPaginationProperties.class})
     @Import({EventRouterRest.class, EventHandler.class, EventMapperImpl.class, EventMapManagement.class,
             BeanValidator.class, GlobalErrorWebExceptionHandler.class, ErrorResponseBuilder.class,
-            ErrorStatusMapper.class})
+            ErrorStatusMapper.class, JsonMapperConfig.class})
     static class EventRouteTestConfig {
     }
 }
