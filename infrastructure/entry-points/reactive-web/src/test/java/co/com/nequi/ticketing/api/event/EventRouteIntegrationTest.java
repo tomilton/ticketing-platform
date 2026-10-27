@@ -1,5 +1,6 @@
 package co.com.nequi.ticketing.api.event;
 
+import co.com.nequi.ticketing.api.config.EventPaginationProperties;
 import co.com.nequi.ticketing.api.config.RouteProperties;
 import co.com.nequi.ticketing.api.event.mapper.EventMapManagement;
 import co.com.nequi.ticketing.api.event.mapper.EventMapperImpl;
@@ -7,15 +8,19 @@ import co.com.nequi.ticketing.api.handle.exceptions.ErrorResponseBuilder;
 import co.com.nequi.ticketing.api.handle.exceptions.ErrorStatusMapper;
 import co.com.nequi.ticketing.api.handle.exceptions.GlobalErrorWebExceptionHandler;
 import co.com.nequi.ticketing.api.validation.BeanValidator;
+import co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage;
 import co.com.nequi.ticketing.model.enums.BusinessErrorMessage;
 import co.com.nequi.ticketing.model.enums.EventStatus;
 import co.com.nequi.ticketing.model.event.Event;
+import co.com.nequi.ticketing.model.event.EventPage;
 import co.com.nequi.ticketing.model.event.Venue;
 import co.com.nequi.ticketing.model.event.command.CreateEventCommand;
+import co.com.nequi.ticketing.model.event.request.EventPageQuery;
 import co.com.nequi.ticketing.model.shared.Capacity;
 import co.com.nequi.ticketing.model.shared.EventId;
 import co.com.nequi.ticketing.usecase.createevent.CreateEventUseCase;
 import co.com.nequi.ticketing.usecase.getevent.GetEventUseCase;
+import co.com.nequi.ticketing.usecase.listactiveevents.ListActiveEventsUseCase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -31,6 +36,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,6 +64,9 @@ class EventRouteIntegrationTest {
 
     @MockitoBean
     private GetEventUseCase getEventUseCase;
+
+    @MockitoBean
+    private ListActiveEventsUseCase listActiveEventsUseCase;
 
     @Test
     void shouldCreateEventWhenRequestIsValid() {
@@ -174,6 +183,72 @@ class EventRouteIntegrationTest {
         verifyNoInteractions(getEventUseCase);
     }
 
+    @Test
+    void shouldUseDefaultLimitAndReturnNoCursorWhenLastPageIsListed() {
+        // Given
+        when(listActiveEventsUseCase.list(new EventPageQuery(20, null)))
+                .thenReturn(Mono.just(new EventPage(List.of(EVENT), null)));
+
+        // When / Then
+        webTestClient.get().uri(EVENTS).exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.meta.code").isEqualTo("TKS0001")
+                .jsonPath("$.data.items[0].eventId").isEqualTo(EVENT_ID.value().toString())
+                .jsonPath("$.data.nextCursor").isEmpty();
+    }
+
+    @Test
+    void shouldPassCursorUnchangedAndReturnNextCursorWhenThereAreMorePages() {
+        // Given
+        when(listActiveEventsUseCase.list(new EventPageQuery(2, "abc-123")))
+                .thenReturn(Mono.just(new EventPage(List.of(EVENT), "next-456")));
+
+        // When / Then
+        webTestClient.get().uri(EVENTS + "?limit=2&cursor=abc-123").exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.nextCursor").isEqualTo("next-456");
+    }
+
+    @Test
+    void shouldReturnEmptyItemsWhenNoEventIsOnSale() {
+        // Given
+        when(listActiveEventsUseCase.list(new EventPageQuery(20, null)))
+                .thenReturn(Mono.just(new EventPage(List.of(), null)));
+
+        // When / Then
+        webTestClient.get().uri(EVENTS).exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.items.length()").isEqualTo(0);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "101", "abc"})
+    void shouldRejectNamingLimitWhenLimitIsInvalid(String limit) {
+        // When / Then
+        assertErrorNaming(webTestClient.get().uri(EVENTS + "?limit=" + limit).exchange(), "limit");
+        verifyNoInteractions(listActiveEventsUseCase);
+    }
+
+    @Test
+    void shouldRejectNamingCursorWhenCursorIsInvalid() {
+        // Given
+        when(listActiveEventsUseCase.list(new EventPageQuery(20, "basura")))
+                .thenReturn(Mono.error(TechnicalErrorMessage.VALIDATION_ERROR.build()));
+
+        // When / Then
+        assertErrorNaming(webTestClient.get().uri(EVENTS + "?cursor=basura").exchange(), "cursor");
+    }
+
+    private static void assertErrorNaming(WebTestClient.ResponseSpec response, String parameter) {
+        response.expectStatus().isBadRequest()
+                .expectBody()
+                .jsonPath("$.errors[0].code").isEqualTo("TKT0001")
+                .jsonPath("$.errors[0].message").value(message -> assertThat((String) message).contains(parameter));
+    }
+
     private WebTestClient.ResponseSpec get(String eventId) {
         return webTestClient.get().uri(EVENTS + "/" + eventId).exchange();
     }
@@ -193,7 +268,7 @@ class EventRouteIntegrationTest {
     }
 
     @Configuration
-    @EnableConfigurationProperties(RouteProperties.class)
+    @EnableConfigurationProperties({RouteProperties.class, EventPaginationProperties.class})
     @Import({EventRouterRest.class, EventHandler.class, EventMapperImpl.class, EventMapManagement.class,
             BeanValidator.class, GlobalErrorWebExceptionHandler.class, ErrorResponseBuilder.class,
             ErrorStatusMapper.class})

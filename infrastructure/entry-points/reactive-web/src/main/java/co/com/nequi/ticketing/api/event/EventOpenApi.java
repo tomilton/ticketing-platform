@@ -3,6 +3,7 @@ package co.com.nequi.ticketing.api.event;
 import co.com.nequi.ticketing.api.commons.ErrorEnvelope;
 import co.com.nequi.ticketing.api.commons.Meta;
 import co.com.nequi.ticketing.api.event.dto.request.CreateEventRequestDto;
+import co.com.nequi.ticketing.api.event.dto.response.EventPageResponseDto;
 import co.com.nequi.ticketing.api.event.dto.response.EventResponseDto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -47,6 +48,22 @@ public class EventOpenApi {
                 .response(error("500", "TKT0005, TKT0009"));
     }
 
+    public static void listEvents(Builder operation) {
+        operation.operationId("listActiveEvents")
+                .tag(TAG)
+                .summary("List ACTIVE events with a future date, ordered by date ascending")
+                .parameter(parameterBuilder().name("limit").in(ParameterIn.QUERY).required(false)
+                        .description("Page size, from 1 to 100; 20 by default").implementation(Integer.class))
+                .parameter(parameterBuilder().name("cursor").in(ParameterIn.QUERY).required(false)
+                        .description("Opaque continuation token returned as data.nextCursor")
+                        .implementation(String.class))
+                .response(responseBuilder().responseCode("200")
+                        .description("Page of events (meta.code TKS0001). Empty items when there are none")
+                        .implementation(EventPageEnvelope.class))
+                .response(error("400", "TKT0001 invalid limit or cursor"))
+                .response(error("500", "TKT0005, TKT0009"));
+    }
+
     private static org.springdoc.core.fn.builders.parameter.Builder eventIdParameter() {
         return parameterBuilder().name("eventId").in(ParameterIn.PATH).required(true).implementation(UUID.class);
     }
@@ -57,5 +74,9 @@ public class EventOpenApi {
 
     @Schema(name = "EventEnvelope")
     record EventEnvelope(Meta meta, EventResponseDto data) {
+    }
+
+    @Schema(name = "EventPageEnvelope")
+    record EventPageEnvelope(Meta meta, EventPageResponseDto data) {
     }
 }

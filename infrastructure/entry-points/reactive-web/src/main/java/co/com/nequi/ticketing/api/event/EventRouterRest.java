@@ -19,6 +19,7 @@ public class EventRouterRest {
     public RouterFunction<ServerResponse> eventRoutes(EventHandler handler, RouteProperties routes) {
         return SpringdocRouteBuilder.route()
                 .POST(routes.eventsPath(), handler::createEvent, EventOpenApi::createEvent)
+                .GET(routes.eventsPath(), handler::listEvents, EventOpenApi::listEvents)
                 .GET(routes.eventByIdPath(), handler::getEvent, EventOpenApi::getEvent)
                 .build();
     }
