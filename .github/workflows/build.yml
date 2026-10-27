@@ -32,7 +32,8 @@ jobs:
           gradle-version: "9.8.2"
 
       - name: Build and test
-        run: gradle build --no-daemon
+        # One worker, as documented in the README: the integration tests share LocalStack containers.
+        run: gradle build --no-daemon --max-workers=1
 
       - name: Upload coverage report
         if: always()
@@ -40,4 +41,14 @@ jobs:
         with:
           name: jacoco-report
           path: build/reports/jacoco/jacocoMergedReport/
+          if-no-files-found: ignore
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            **/build/reports/tests/
+            **/build/test-results/
           if-no-files-found: ignore
