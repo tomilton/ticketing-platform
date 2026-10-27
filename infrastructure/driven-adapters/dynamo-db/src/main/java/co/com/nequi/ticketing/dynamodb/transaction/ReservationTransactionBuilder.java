@@ -76,7 +76,7 @@ public class ReservationTransactionBuilder {
      * @return the transaction with its six items
      */
     public TransactWriteItemsRequest build(Order order, Event event, ReservationContext context, Instant now) {
-        String quantity = String.valueOf(order.getQuantity().value());
+        String quantity = String.valueOf(order.getQuantity());
         return TransactWriteItemsRequest.builder()
                 .transactItems(List.of(
                         checkEventOnSale(event, now),
@@ -140,7 +140,7 @@ public class ReservationTransactionBuilder {
     private TransactWriteItem holdTicketsOfCustomer(Order order, Event event, ReservationContext context,
                                                     String quantity) {
         long limitTtl = event.getDate().plus(LIMIT_RETENTION_AFTER_EVENT).getEpochSecond();
-        int maxMinusQuantity = context.maxTicketsPerCustomer() - order.getQuantity().value();
+        int maxMinusQuantity = context.maxTicketsPerCustomer() - order.getQuantity();
         return TransactWriteItem.builder()
                 .update(Update.builder()
                         .tableName(properties.customerLimitsTable())

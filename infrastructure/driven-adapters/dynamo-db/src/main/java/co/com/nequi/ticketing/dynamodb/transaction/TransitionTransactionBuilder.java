@@ -106,7 +106,7 @@ public class TransitionTransactionBuilder {
                                 ":available", number(movement.availableChange(order.getQuantity())),
                                 ":reserved", number(movement.reservedChange(order.getQuantity())),
                                 ":sold", number(movement.soldChange(order.getQuantity())),
-                                ":q", number(order.getQuantity().value()),
+                                ":q", number(order.getQuantity()),
                                 ":one", AttributeValue.fromN(ONE)))
                         .build())
                 .build();
@@ -120,8 +120,8 @@ public class TransitionTransactionBuilder {
                         .updateExpression(RELEASE_UPDATE)
                         .conditionExpression(RELEASE_CONDITION)
                         .expressionAttributeValues(Map.ofEntries(
-                                Map.entry(":minusQ", number(-order.getQuantity().value())),
-                                Map.entry(":q", number(order.getQuantity().value()))))
+                                Map.entry(":minusQ", number(-order.getQuantity())),
+                                Map.entry(":q", number(order.getQuantity()))))
                         .build())
                 .build();
     }

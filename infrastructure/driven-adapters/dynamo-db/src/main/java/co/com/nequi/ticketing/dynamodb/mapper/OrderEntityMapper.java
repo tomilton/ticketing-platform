@@ -3,7 +3,6 @@ package co.com.nequi.ticketing.dynamodb.mapper;
 import co.com.nequi.ticketing.dynamodb.entity.OrderEntity;
 import co.com.nequi.ticketing.model.order.Order;
 import co.com.nequi.ticketing.model.order.OrderId;
-import co.com.nequi.ticketing.model.order.Quantity;
 import co.com.nequi.ticketing.model.order.TicketId;
 import co.com.nequi.ticketing.model.shared.CustomerId;
 import org.mapstruct.Mapper;
@@ -63,13 +62,5 @@ public interface OrderEntityMapper extends DomainValueConversions {
 
     default TicketId toTicketId(String ticketId) {
         return new TicketId(UUID.fromString(ticketId));
-    }
-
-    default Integer toValue(Quantity quantity) {
-        return quantity.value();
-    }
-
-    default Quantity toQuantity(Integer quantity) {
-        return new Quantity(quantity);
     }
 }

@@ -2,6 +2,7 @@ package co.com.nequi.ticketing.usecase.republishpendingorders;
 
 import co.com.nequi.ticketing.model.config.OrderSettings;
 import co.com.nequi.ticketing.model.order.Order;
+import co.com.nequi.ticketing.model.order.Quantity;
 import co.com.nequi.ticketing.model.order.event.OrderPlacedMessage;
 import co.com.nequi.ticketing.model.order.gateways.OrderEventPublisher;
 import co.com.nequi.ticketing.model.order.gateways.OrderRepository;
@@ -43,7 +44,7 @@ public class RepublishPendingOrdersUseCase {
 
     private Mono<Order> publish(Order order, Instant now) {
         OrderPlacedMessage message = new OrderPlacedMessage(UUID.randomUUID(), order.getOrderId(),
-                order.getEventId(), order.getQuantity(), now);
+                order.getEventId(), new Quantity(order.getQuantity()), now);
         return orderEventPublisher.publishOrderPlaced(message)
                 .then(Mono.defer(() -> orderRepository.markPublished(order.getOrderId(), now)))
                 .thenReturn(order);

@@ -30,7 +30,7 @@ public interface OrderMapper {
 
     @Mapping(target = "orderId", source = "order.orderId.value")
     @Mapping(target = "eventId", source = "order.eventId.value")
-    @Mapping(target = "quantity", source = "order.quantity.value")
+    @Mapping(target = "quantity", source = "order.quantity")
     @Mapping(target = "status", source = "effectiveStatus")
     @Mapping(target = "expiresAt", source = "order.expiresAt")
     OrderResponseDto toResponse(OrderView view);

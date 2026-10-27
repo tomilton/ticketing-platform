@@ -20,7 +20,8 @@ import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.INVALID_ST
 
 /**
  * Order aggregate: the tickets of one event reserved by a customer until they are paid, cancelled
- * or expired. It is immutable; every change returns a new instance with the next version.
+ * or expired, or the tickets given away to a customer by an administrator. It is immutable; every
+ * change returns a new instance with the next version.
  */
 @Getter
 public class Order {
@@ -30,7 +31,7 @@ public class Order {
     private final OrderId orderId;
     private final CustomerId customerId;
     private final EventId eventId;
-    private final Quantity quantity;
+    private final Integer quantity;
     private final List<TicketId> tickets;
     private final OrderStatus status;
     private final Instant createdAt;
@@ -39,19 +40,19 @@ public class Order {
     private final Long version;
 
     @Builder(toBuilder = true)
-    private Order(OrderId orderId, CustomerId customerId, EventId eventId, Quantity quantity, List<TicketId> tickets,
+    private Order(OrderId orderId, CustomerId customerId, EventId eventId, Integer quantity, List<TicketId> tickets,
                   OrderStatus status, Instant createdAt, Instant expiresAt, Integer shardId, Long version) {
         this.orderId = Objects.requireNonNull(orderId, "Order id must not be null");
         this.customerId = Objects.requireNonNull(customerId, "Customer id must not be null");
         this.eventId = Objects.requireNonNull(eventId, "Event id must not be null");
-        this.quantity = Objects.requireNonNull(quantity, "Quantity must not be null");
+        this.quantity = validQuantity(Objects.requireNonNull(status, "Status must not be null"), quantity);
         this.tickets = List.copyOf(Objects.requireNonNull(tickets, "Tickets must not be null"));
         this.status = Objects.requireNonNull(status, "Status must not be null");
         this.createdAt = Objects.requireNonNull(createdAt, "Creation instant must not be null");
         this.expiresAt = Objects.requireNonNull(expiresAt, "Expiration instant must not be null");
         this.shardId = Objects.requireNonNull(shardId, "Shard id must not be null");
         this.version = Objects.requireNonNull(version, "Version must not be null");
-        if (this.tickets.size() != quantity.value()) {
+        if (this.tickets.size() != quantity) {
             throw new IllegalArgumentException("Tickets must match the quantity");
         }
     }
@@ -75,11 +76,40 @@ public class Order {
                 .orderId(orderId)
                 .customerId(customerId)
                 .eventId(eventId)
-                .quantity(quantity)
+                .quantity(quantity.value())
                 .tickets(Stream.generate(TicketId::newId).limit(quantity.value()).toList())
                 .status(OrderStatus.RESERVED)
                 .createdAt(createdAt)
                 .expiresAt(createdAt.plus(ttl))
+                .shardId(shardId)
+                .version(INITIAL_VERSION)
+                .build();
+    }
+
+    /**
+     * Creates a final complimentary order with one new ticket per unit of the quantity. It never
+     * expires, so its expiration instant is its creation instant.
+     *
+     * @param orderId    the identifier of the order
+     * @param customerId the customer who receives the tickets
+     * @param eventId    the event of the tickets
+     * @param quantity   the number of complimentary tickets
+     * @param shardId    the first inventory shard to try
+     * @param now        the current instant; it is truncated to milliseconds
+     * @return the order in {@link OrderStatus#COMPLIMENTARY} with version 1
+     */
+    public static Order grantComplimentary(OrderId orderId, CustomerId customerId, EventId eventId,
+                                           ComplimentaryQuantity quantity, Integer shardId, Instant now) {
+        Instant createdAt = now.truncatedTo(ChronoUnit.MILLIS);
+        return Order.builder()
+                .orderId(orderId)
+                .customerId(customerId)
+                .eventId(eventId)
+                .quantity(quantity.value())
+                .tickets(Stream.generate(TicketId::newId).limit(quantity.value()).toList())
+                .status(OrderStatus.COMPLIMENTARY)
+                .createdAt(createdAt)
+                .expiresAt(createdAt)
                 .shardId(shardId)
                 .version(INITIAL_VERSION)
                 .build();
@@ -93,6 +123,16 @@ public class Order {
     public OrderStatusChange placementChange() {
         return new OrderStatusChange(orderId, null, OrderStatus.RESERVED, StatusChangeReason.PLACED,
                 ChangeActor.CUSTOMER, createdAt);
+    }
+
+    /**
+     * Audit record of the grant of a complimentary order.
+     *
+     * @return the change to {@link OrderStatus#COMPLIMENTARY} caused by the administrator
+     */
+    public OrderStatusChange grantChange() {
+        return new OrderStatusChange(orderId, null, OrderStatus.COMPLIMENTARY, StatusChangeReason.COMPLIMENTARY_GRANTED,
+                ChangeActor.ADMIN, createdAt);
     }
 
     /**
@@ -155,5 +195,13 @@ public class Order {
         Order next = toBuilder().status(target).version(version + 1).build();
         return new OrderTransition(this, next,
                 new OrderStatusChange(orderId, status, target, reason, ChangeActor.WORKER, at));
+    }
+
+    /**
+     * A complimentary order follows the range of a grant; any other order follows the range of a purchase.
+     */
+    private static Integer validQuantity(OrderStatus status, Integer quantity) {
+        return status == OrderStatus.COMPLIMENTARY ? new ComplimentaryQuantity(quantity).value()
+                : new Quantity(quantity).value();
     }
 }
