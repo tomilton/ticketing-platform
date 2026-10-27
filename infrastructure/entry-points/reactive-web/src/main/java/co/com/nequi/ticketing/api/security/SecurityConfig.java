@@ -31,7 +31,7 @@ import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.UNA
 @EnableConfigurationProperties({JwtProperties.class, RouteProperties.class})
 public class SecurityConfig {
 
-    private static final String ROLE_PREFIX = "ROLE_";
+    static final String ROLE_PREFIX = "ROLE_";
     private static final String HEALTH = "/actuator/health/**";
     private static final String BEARER = "Bearer";
     private static final ServerAuthenticationEntryPoint ENTRY_POINT = (exchange, error) -> Mono.fromRunnable(
