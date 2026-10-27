@@ -21,6 +21,7 @@ import co.com.nequi.ticketing.api.order.ComplimentaryRouterRest;
 import co.com.nequi.ticketing.api.order.mapper.OrderMapManagement;
 import co.com.nequi.ticketing.api.order.mapper.OrderMapperImpl;
 import co.com.nequi.ticketing.api.validation.BeanValidator;
+import co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage;
 import co.com.nequi.ticketing.model.event.command.CreateEventCommand;
 import co.com.nequi.ticketing.model.order.command.GrantComplimentaryCommand;
 import co.com.nequi.ticketing.model.shared.EventId;
@@ -171,6 +172,16 @@ class ErrorCatalogRouteTest {
                         NO_STUB),
                 Arguments.of("003 complimentary unexpected error", HttpMethod.POST, COMPLIMENTARY, COMPLIMENTARY_BODY,
                         500, "TKT0009", grantFailingWith(new IllegalStateException("unexpected"))),
+                Arguments.of("004 unauthorized", HttpMethod.POST, COMPLIMENTARY, COMPLIMENTARY_BODY, 401, "TKT0010",
+                        grantFailingWith(TechnicalErrorMessage.UNAUTHORIZED.build())),
+                Arguments.of("004 forbidden", HttpMethod.POST, COMPLIMENTARY, COMPLIMENTARY_BODY, 403, "TKT0011",
+                        grantFailingWith(TechnicalErrorMessage.FORBIDDEN.build())),
+                Arguments.of("004 rate limited", HttpMethod.POST, COMPLIMENTARY, COMPLIMENTARY_BODY, 429, "TKT0012",
+                        grantFailingWith(TechnicalErrorMessage.RATE_LIMITED.build())),
+                Arguments.of("004 invalid webhook signature", HttpMethod.POST, COMPLIMENTARY, COMPLIMENTARY_BODY, 401,
+                        "TKT0013", grantFailingWith(TechnicalErrorMessage.INVALID_WEBHOOK_SIGNATURE.build())),
+                Arguments.of("004 payload too large", HttpMethod.POST, COMPLIMENTARY, COMPLIMENTARY_BODY, 413,
+                        "TKT0014", grantFailingWith(TechnicalErrorMessage.PAYLOAD_TOO_LARGE.build())),
                 Arguments.of("Unexpected error", HttpMethod.GET, EVENTS + "/" + KNOWN_ID, null, 500, "TKT0009",
                         (Consumer<ErrorCatalogRouteTest>) test -> when(test.getEventUseCase.get(any(EventId.class)))
                                 .thenReturn(Mono.error(new IllegalStateException("unexpected")))));

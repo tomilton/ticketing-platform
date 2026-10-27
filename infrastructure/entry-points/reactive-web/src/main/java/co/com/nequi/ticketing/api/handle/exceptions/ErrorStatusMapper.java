@@ -7,10 +7,15 @@ import java.util.Map;
 
 import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.DYNAMODB_ERROR;
 import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.EMPTY_REQUEST_BODY;
+import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.FORBIDDEN;
 import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.INVALID_JSON;
+import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.INVALID_WEBHOOK_SIGNATURE;
 import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.MISSING_IDEMPOTENCY_KEY;
+import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.PAYLOAD_TOO_LARGE;
 import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.PAYMENT_GATEWAY_ERROR;
+import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.RATE_LIMITED;
 import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.SQS_ERROR;
+import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.UNAUTHORIZED;
 import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.UNEXPECTED_ERROR;
 import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.VALIDATION_ERROR;
 import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.EVENT_DATE_NOT_IN_FUTURE;
@@ -43,6 +48,11 @@ public class ErrorStatusMapper {
             Map.entry(INVALID_JSON.getCode(), HttpStatus.BAD_REQUEST),
             Map.entry(EMPTY_REQUEST_BODY.getCode(), HttpStatus.BAD_REQUEST),
             Map.entry(MISSING_IDEMPOTENCY_KEY.getCode(), HttpStatus.BAD_REQUEST),
+            Map.entry(UNAUTHORIZED.getCode(), HttpStatus.UNAUTHORIZED),
+            Map.entry(FORBIDDEN.getCode(), HttpStatus.FORBIDDEN),
+            Map.entry(RATE_LIMITED.getCode(), HttpStatus.TOO_MANY_REQUESTS),
+            Map.entry(INVALID_WEBHOOK_SIGNATURE.getCode(), HttpStatus.UNAUTHORIZED),
+            Map.entry(PAYLOAD_TOO_LARGE.getCode(), HttpStatus.CONTENT_TOO_LARGE),
             Map.entry(DYNAMODB_ERROR.getCode(), HttpStatus.INTERNAL_SERVER_ERROR),
             Map.entry(SQS_ERROR.getCode(), HttpStatus.INTERNAL_SERVER_ERROR),
             Map.entry(PAYMENT_GATEWAY_ERROR.getCode(), HttpStatus.SERVICE_UNAVAILABLE),

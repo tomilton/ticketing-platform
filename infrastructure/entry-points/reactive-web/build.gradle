@@ -4,6 +4,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation "io.github.resilience4j:resilience4j-ratelimiter:${resilience4jVersion}"
+    implementation "com.github.ben-manes.caffeine:caffeine:${caffeineVersion}"
     implementation "org.springdoc:springdoc-openapi-starter-webflux-api:${springdocVersion}"
     implementation "org.mapstruct:mapstruct:${mapstructVersion}"
     annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"

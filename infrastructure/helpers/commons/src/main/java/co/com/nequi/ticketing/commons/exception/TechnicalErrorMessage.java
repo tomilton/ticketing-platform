@@ -16,6 +16,13 @@ public enum TechnicalErrorMessage {
     INVALID_JSON("TKT0002", "Request body is not valid JSON", Boolean.FALSE),
     EMPTY_REQUEST_BODY("TKT0003", "Request body is empty", Boolean.FALSE),
     MISSING_IDEMPOTENCY_KEY("TKT0004", "Idempotency-Key header is missing or is not a UUID", Boolean.FALSE),
+    PAYLOAD_TOO_LARGE("TKT0014", "Request body is too large", Boolean.FALSE),
+
+    // Security
+    UNAUTHORIZED("TKT0010", "Authentication is missing or not valid", Boolean.FALSE),
+    FORBIDDEN("TKT0011", "Operation not allowed for the caller", Boolean.FALSE),
+    RATE_LIMITED("TKT0012", "Too many requests", Boolean.FALSE),
+    INVALID_WEBHOOK_SIGNATURE("TKT0013", "Webhook signature is missing or not valid", Boolean.FALSE),
 
     // Infrastructure
     DYNAMODB_ERROR("TKT0005", "Database error", Boolean.TRUE),
