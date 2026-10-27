@@ -8,6 +8,8 @@ import co.com.nequi.ticketing.api.event.mapper.EventMapperImpl;
 import co.com.nequi.ticketing.api.handle.exceptions.ErrorResponseBuilder;
 import co.com.nequi.ticketing.api.handle.exceptions.ErrorStatusMapper;
 import co.com.nequi.ticketing.api.handle.exceptions.GlobalErrorWebExceptionHandler;
+import co.com.nequi.ticketing.api.support.AuthenticatedClientConfig;
+import co.com.nequi.ticketing.api.support.SecurityTestConfig;
 import co.com.nequi.ticketing.api.validation.BeanValidator;
 import co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage;
 import co.com.nequi.ticketing.model.enums.BusinessErrorMessage;
@@ -277,7 +279,7 @@ class EventRouteIntegrationTest {
 
     @Configuration
     @EnableConfigurationProperties({RouteProperties.class, EventPaginationProperties.class})
-    @Import({EventRouterRest.class, EventHandler.class, EventMapperImpl.class, EventMapManagement.class,
+    @Import({SecurityTestConfig.class, AuthenticatedClientConfig.class, EventRouterRest.class, EventHandler.class, EventMapperImpl.class, EventMapManagement.class,
             BeanValidator.class, GlobalErrorWebExceptionHandler.class, ErrorResponseBuilder.class,
             ErrorStatusMapper.class, JsonMapperConfig.class})
     static class EventRouteTestConfig {

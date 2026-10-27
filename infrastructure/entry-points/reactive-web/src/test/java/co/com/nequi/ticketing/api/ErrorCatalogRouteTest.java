@@ -20,6 +20,8 @@ import co.com.nequi.ticketing.api.order.ComplimentaryHandler;
 import co.com.nequi.ticketing.api.order.ComplimentaryRouterRest;
 import co.com.nequi.ticketing.api.order.mapper.OrderMapManagement;
 import co.com.nequi.ticketing.api.order.mapper.OrderMapperImpl;
+import co.com.nequi.ticketing.api.support.AuthenticatedClientConfig;
+import co.com.nequi.ticketing.api.support.SecurityTestConfig;
 import co.com.nequi.ticketing.api.validation.BeanValidator;
 import co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage;
 import co.com.nequi.ticketing.model.event.command.CreateEventCommand;
@@ -195,7 +197,7 @@ class ErrorCatalogRouteTest {
     @Configuration
     @EnableConfigurationProperties({RouteProperties.class, EventPaginationProperties.class,
             AvailabilityBatchProperties.class, AvailabilityStreamProperties.class})
-    @Import({EventRouterRest.class, EventHandler.class, EventMapperImpl.class, EventMapManagement.class,
+    @Import({SecurityTestConfig.class, AuthenticatedClientConfig.class, EventRouterRest.class, EventHandler.class, EventMapperImpl.class, EventMapManagement.class,
             AvailabilityRouterRest.class, AvailabilityHandler.class, AvailabilityStreamHub.class,
             AvailabilityMapperImpl.class, AvailabilityMapManagement.class, BeanValidator.class,
             GlobalErrorWebExceptionHandler.class, ErrorResponseBuilder.class, ErrorStatusMapper.class,

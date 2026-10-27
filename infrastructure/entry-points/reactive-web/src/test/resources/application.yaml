@@ -1,3 +1,6 @@
+spring:
+  profiles:
+    active: local
 app:
   role: api
   cors:
@@ -22,3 +25,13 @@ availability:
     heartbeat: 100ms
     max-duration: 500ms
     retry: 1s
+security:
+  jwt:
+    mode: LOCAL_HS256
+    jwk-set-uri: http://localhost/unused-in-local-mode
+    issuer: https://issuer.test
+    audience: ticketing-platform
+    roles-claim: cognito:groups
+    admin-role: ticketing-admin
+    clock-skew: 60s
+    local-secret: test-only-secret-for-hs256-tokens-0123456789

@@ -1,6 +1,8 @@
 package co.com.nequi.ticketing.api.handle.exceptions;
 
 import co.com.nequi.ticketing.api.messages.exception.ValidationException;
+import co.com.nequi.ticketing.api.support.AuthenticatedClientConfig;
+import co.com.nequi.ticketing.api.support.SecurityTestConfig;
 import co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage;
 import co.com.nequi.ticketing.model.enums.BusinessErrorMessage;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -20,7 +22,7 @@ import static org.springframework.web.reactive.function.server.RequestPredicates
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 
 @WebFluxTest
-@ContextConfiguration(classes = {GlobalErrorWebExceptionHandlerTest.FailingRouter.class,
+@ContextConfiguration(classes = {SecurityTestConfig.class, AuthenticatedClientConfig.class, GlobalErrorWebExceptionHandlerTest.FailingRouter.class,
         GlobalErrorWebExceptionHandler.class, ErrorResponseBuilder.class, ErrorStatusMapper.class})
 class GlobalErrorWebExceptionHandlerTest {
 

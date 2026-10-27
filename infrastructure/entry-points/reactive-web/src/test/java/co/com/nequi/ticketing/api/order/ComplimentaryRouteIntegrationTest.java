@@ -7,6 +7,8 @@ import co.com.nequi.ticketing.api.handle.exceptions.ErrorStatusMapper;
 import co.com.nequi.ticketing.api.handle.exceptions.GlobalErrorWebExceptionHandler;
 import co.com.nequi.ticketing.api.order.mapper.OrderMapManagement;
 import co.com.nequi.ticketing.api.order.mapper.OrderMapperImpl;
+import co.com.nequi.ticketing.api.support.AuthenticatedClientConfig;
+import co.com.nequi.ticketing.api.support.SecurityTestConfig;
 import co.com.nequi.ticketing.api.validation.BeanValidator;
 import co.com.nequi.ticketing.model.enums.BusinessErrorMessage;
 import co.com.nequi.ticketing.model.order.ComplimentaryQuantity;
@@ -146,7 +148,7 @@ class ComplimentaryRouteIntegrationTest {
 
     @Configuration
     @EnableConfigurationProperties(RouteProperties.class)
-    @Import({ComplimentaryRouterRest.class, ComplimentaryHandler.class, OrderMapperImpl.class, OrderMapManagement.class,
+    @Import({SecurityTestConfig.class, AuthenticatedClientConfig.class, ComplimentaryRouterRest.class, ComplimentaryHandler.class, OrderMapperImpl.class, OrderMapManagement.class,
             BeanValidator.class, GlobalErrorWebExceptionHandler.class, ErrorResponseBuilder.class,
             ErrorStatusMapper.class, JsonMapperConfig.class})
     static class ComplimentaryRouteTestConfig {

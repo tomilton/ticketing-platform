@@ -1,5 +1,7 @@
 package co.com.nequi.ticketing.api.config;
 
+import co.com.nequi.ticketing.api.support.AuthenticatedClientConfig;
+import co.com.nequi.ticketing.api.support.SecurityTestConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webflux.test.autoconfigure.WebFluxTest;
@@ -17,7 +19,7 @@ import static org.springframework.web.reactive.function.server.RouterFunctions.r
 
 @ContextConfiguration(classes = ConfigTest.TestRouter.class)
 @WebFluxTest
-@Import({CorsConfig.class, SecurityHeadersConfig.class})
+@Import({SecurityTestConfig.class, AuthenticatedClientConfig.class, SecurityHeadersConfig.class})
 @TestPropertySource(properties = "app.cors.allowed-origins=http://localhost:4200")
 class ConfigTest {
 
