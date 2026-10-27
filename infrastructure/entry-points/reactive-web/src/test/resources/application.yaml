@@ -25,6 +25,10 @@ availability:
     heartbeat: 100ms
     max-duration: 500ms
     retry: 1s
+rate-limit:
+  orders:
+    limit-for-period: 1000
+    period: 1m
 security:
   jwt:
     mode: LOCAL_HS256

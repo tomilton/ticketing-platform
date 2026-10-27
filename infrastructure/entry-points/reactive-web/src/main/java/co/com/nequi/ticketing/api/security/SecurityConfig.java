@@ -29,7 +29,7 @@ import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.UNA
  */
 @Configuration
 @EnableWebFluxSecurity
-@EnableConfigurationProperties({JwtProperties.class, RouteProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, RouteProperties.class, RateLimitProperties.class})
 public class SecurityConfig {
 
     static final String ROLE_PREFIX = "ROLE_";

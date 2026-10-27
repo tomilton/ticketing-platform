@@ -61,6 +61,8 @@ locals {
     MANAGEMENT_ENDPOINTS_EXPOSURE        = "health,prometheus"
     MANAGEMENT_HEALTH_PROBES_ENABLED     = "true"
     JWT_MODE                             = "JWKS"
+    RATE_LIMIT_ORDERS_PER_PERIOD         = "10"
+    RATE_LIMIT_ORDERS_PERIOD             = "PT1M"
     ROUTES_BASE_PATH                     = "/api/v1"
     ROUTES_EVENTS                        = "/events"
     ROUTES_EVENT_BY_ID                   = "/events/{eventId}"

@@ -22,6 +22,10 @@ security:
     roles-claim: ${JWT_ROLES_CLAIM}
     admin-role: ${JWT_ADMIN_ROLE}
     clock-skew: ${JWT_CLOCK_SKEW}
+rate-limit:
+  orders:
+    limit-for-period: ${RATE_LIMIT_ORDERS_PER_PERIOD}
+    period: ${RATE_LIMIT_ORDERS_PERIOD}
 routes:
   base-path: ${ROUTES_BASE_PATH}
   events: ${ROUTES_EVENTS}
