@@ -1,0 +1,21 @@
+app:
+  role: api
+  cors:
+    allowed-origins: http://localhost:4200
+routes:
+  base-path: /api/v1
+  events: /events
+  event-by-id: /events/{eventId}
+  event-availability: /events/{eventId}/availability
+  batch-availability: /events/availability
+  availability-stream: /events/{eventId}/availability/stream
+pagination:
+  events:
+    default-size: 20
+    max-size: 100
+availability:
+  batch-max-ids: 100
+  stream:
+    heartbeat: 100ms
+    max-duration: 500ms
+    retry: 1s
