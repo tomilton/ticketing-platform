@@ -7,6 +7,7 @@ import co.com.nequi.ticketing.model.event.gateways.EventRepository;
 import co.com.nequi.ticketing.model.exception.BusinessException;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyClaim;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyRecord;
+import co.com.nequi.ticketing.model.idempotency.IdempotencyScope;
 import co.com.nequi.ticketing.model.idempotency.RequestFingerprint;
 import co.com.nequi.ticketing.model.idempotency.gateways.IdempotencyRepository;
 import co.com.nequi.ticketing.model.order.Order;
@@ -50,8 +51,9 @@ public class PlaceOrderUseCase {
 
     public Mono<Accepted> place(PlaceOrderCommand command) {
         RequestFingerprint fingerprint = RequestFingerprint.of(command.eventId(), command.quantity());
+        IdempotencyScope scope = IdempotencyScope.ofCustomer(command.customerId());
         return Mono.fromSupplier(clockProvider::now)
-                .flatMap(now -> idempotencyRepository.claim(command.customerId(), command.key(), fingerprint, now)
+                .flatMap(now -> idempotencyRepository.claim(scope, command.key(), fingerprint, now)
                         .flatMap(claim -> switch (claim) {
                             case IdempotencyClaim.Granted granted -> placeClaimed(command, granted.lockToken(), now);
                             case IdempotencyClaim.Existing existing -> repeat(existing.record(), fingerprint);
@@ -77,11 +79,11 @@ public class PlaceOrderUseCase {
     private Mono<Accepted> placeClaimed(PlaceOrderCommand command, UUID lockToken, Instant now) {
         return reserve(command, lockToken, now)
                 .onErrorResume(PlaceOrderUseCase::isDefinitiveRejection, error -> idempotencyRepository
-                        .complete(command.customerId(), command.key(), lockToken,
+                        .complete(IdempotencyScope.ofCustomer(command.customerId()), command.key(), lockToken,
                                 new PlacementOutcome.Rejected(((BusinessException) error).getBusinessErrorMessage()))
                         .then(Mono.error(error)))
                 .onErrorResume(error -> !(error instanceof BusinessException), error -> idempotencyRepository
-                        .release(command.customerId(), command.key(), lockToken)
+                        .release(IdempotencyScope.ofCustomer(command.customerId()), command.key(), lockToken)
                         .then(Mono.error(error)))
                 .flatMap(order -> publish(order, now).thenReturn(Accepted.of(order)));
     }

@@ -20,6 +20,7 @@ class IdempotencyRecordTest {
 
     private static final Instant LOCKED_UNTIL = Instant.parse("2026-10-27T10:00:10Z");
     private static final CustomerId CUSTOMER_ID = new CustomerId(UUID.randomUUID());
+    private static final IdempotencyScope SCOPE = IdempotencyScope.ofCustomer(CUSTOMER_ID);
     private static final IdempotencyKey KEY = new IdempotencyKey(UUID.randomUUID());
     private static final EventId EVENT_ID = EventId.newId();
     private static final RequestFingerprint FINGERPRINT = RequestFingerprint.of(EVENT_ID, new Quantity(2));
@@ -44,7 +45,7 @@ class IdempotencyRecordTest {
     @Test
     void shouldReturnInactiveLeaseWhenKeyIsCompleted() {
         // Given
-        IdempotencyRecord completed = new IdempotencyRecord(CUSTOMER_ID, KEY, FINGERPRINT,
+        IdempotencyRecord completed = new IdempotencyRecord(SCOPE, KEY, FINGERPRINT,
                 IdempotencyStatus.COMPLETED, UUID.randomUUID(), LOCKED_UNTIL, new PlacementOutcome.Rejected(TICKETS_SOLD_OUT));
 
         // When / Then
@@ -60,20 +61,20 @@ class IdempotencyRecordTest {
         // When / Then
         assertThatThrownBy(() -> new IdempotencyRecord(null, KEY, FINGERPRINT, status, token, LOCKED_UNTIL, null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new IdempotencyRecord(CUSTOMER_ID, null, FINGERPRINT, status, token, LOCKED_UNTIL,
+        assertThatThrownBy(() -> new IdempotencyRecord(SCOPE, null, FINGERPRINT, status, token, LOCKED_UNTIL,
                 null)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new IdempotencyRecord(CUSTOMER_ID, KEY, null, status, token, LOCKED_UNTIL, null))
+        assertThatThrownBy(() -> new IdempotencyRecord(SCOPE, KEY, null, status, token, LOCKED_UNTIL, null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new IdempotencyRecord(CUSTOMER_ID, KEY, FINGERPRINT, null, token, LOCKED_UNTIL,
+        assertThatThrownBy(() -> new IdempotencyRecord(SCOPE, KEY, FINGERPRINT, null, token, LOCKED_UNTIL,
                 null)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new IdempotencyRecord(CUSTOMER_ID, KEY, FINGERPRINT, status, null, LOCKED_UNTIL,
+        assertThatThrownBy(() -> new IdempotencyRecord(SCOPE, KEY, FINGERPRINT, status, null, LOCKED_UNTIL,
                 null)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new IdempotencyRecord(CUSTOMER_ID, KEY, FINGERPRINT, status, token, null, null))
+        assertThatThrownBy(() -> new IdempotencyRecord(SCOPE, KEY, FINGERPRINT, status, token, null, null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     private static IdempotencyRecord inProgress() {
-        return new IdempotencyRecord(CUSTOMER_ID, KEY, FINGERPRINT, IdempotencyStatus.IN_PROGRESS,
+        return new IdempotencyRecord(SCOPE, KEY, FINGERPRINT, IdempotencyStatus.IN_PROGRESS,
                 UUID.randomUUID(), LOCKED_UNTIL, null);
     }
 }

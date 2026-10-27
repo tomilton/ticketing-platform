@@ -6,6 +6,7 @@ import co.com.nequi.ticketing.dynamodb.mapper.IdempotencyEntityMapper;
 import co.com.nequi.ticketing.dynamodb.mapper.OrderEntityMapper;
 import co.com.nequi.ticketing.model.enums.EventStatus;
 import co.com.nequi.ticketing.model.enums.IdempotencyStatus;
+import co.com.nequi.ticketing.model.idempotency.IdempotencyScope;
 import co.com.nequi.ticketing.model.event.Event;
 import co.com.nequi.ticketing.model.order.Order;
 import co.com.nequi.ticketing.model.order.PlacementOutcome;
@@ -189,7 +190,7 @@ public class ReservationTransactionBuilder {
                 .update(Update.builder()
                         .tableName(properties.idempotencyTable())
                         .key(Map.of(IdempotencyEntityMapper.IDEMPOTENCY_ID,
-                                AttributeValue.fromS(idempotencyMapper.idempotencyId(context.customerId(), context.key()))))
+                                AttributeValue.fromS(idempotencyMapper.idempotencyId(IdempotencyScope.ofCustomer(context.customerId()), context.key()))))
                         .updateExpression("SET #status = :completed, " + setOutcome)
                         .conditionExpression(KEY_HELD_CONDITION)
                         .expressionAttributeNames(Map.of("#status", IdempotencyEntityMapper.STATUS))

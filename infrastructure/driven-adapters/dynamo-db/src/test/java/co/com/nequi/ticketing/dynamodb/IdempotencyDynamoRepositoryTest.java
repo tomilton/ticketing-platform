@@ -36,7 +36,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import static co.com.nequi.ticketing.dynamodb.support.OrderFixtures.CUSTOMER_ID;
+import static co.com.nequi.ticketing.dynamodb.support.OrderFixtures.SCOPE;
 import static co.com.nequi.ticketing.dynamodb.support.OrderFixtures.KEY;
 import static co.com.nequi.ticketing.dynamodb.support.OrderFixtures.LOCK_TOKEN;
 import static co.com.nequi.ticketing.dynamodb.support.OrderFixtures.NOW;
@@ -72,7 +72,7 @@ class IdempotencyDynamoRepositoryTest {
                 .thenReturn(CompletableFuture.completedFuture(PutItemResponse.builder().build()));
 
         // When / Then
-        StepVerifier.create(repository.claim(CUSTOMER_ID, KEY, FINGERPRINT, NOW))
+        StepVerifier.create(repository.claim(SCOPE, KEY, FINGERPRINT, NOW))
                 .assertNext(claim -> assertThat(claim).isInstanceOfSatisfying(IdempotencyClaim.Granted.class,
                         granted -> assertThat(captor.getValue().item().get("lockToken").s())
                                 .isEqualTo(granted.lockToken().toString())))
@@ -97,7 +97,7 @@ class IdempotencyDynamoRepositoryTest {
                 .thenReturn(stored(IdempotencyStatus.IN_PROGRESS, NOW.plusSeconds(5)));
 
         // When / Then
-        StepVerifier.create(repository.claim(CUSTOMER_ID, KEY, FINGERPRINT, NOW))
+        StepVerifier.create(repository.claim(SCOPE, KEY, FINGERPRINT, NOW))
                 .assertNext(claim -> assertThat(claim).isInstanceOfSatisfying(IdempotencyClaim.Existing.class,
                         existing -> assertThat(existing.record().lockToken()).isEqualTo(LOCK_TOKEN)))
                 .verifyComplete();
@@ -110,7 +110,7 @@ class IdempotencyDynamoRepositoryTest {
         when(client.getItem(any(GetItemRequest.class))).thenReturn(stored(IdempotencyStatus.COMPLETED, NOW.minusSeconds(5)));
 
         // When / Then
-        StepVerifier.create(repository.claim(CUSTOMER_ID, KEY, FINGERPRINT, NOW))
+        StepVerifier.create(repository.claim(SCOPE, KEY, FINGERPRINT, NOW))
                 .assertNext(claim -> assertThat(claim).isInstanceOf(IdempotencyClaim.Existing.class))
                 .verifyComplete();
     }
@@ -125,7 +125,7 @@ class IdempotencyDynamoRepositoryTest {
         when(client.getItem(any(GetItemRequest.class))).thenReturn(stored(IdempotencyStatus.IN_PROGRESS, NOW));
 
         // When / Then
-        StepVerifier.create(repository.claim(CUSTOMER_ID, KEY, FINGERPRINT, NOW))
+        StepVerifier.create(repository.claim(SCOPE, KEY, FINGERPRINT, NOW))
                 .assertNext(claim -> assertThat(claim).isInstanceOf(IdempotencyClaim.Granted.class))
                 .verifyComplete();
         PutItemRequest reclaim = captor.getAllValues().get(1);
@@ -143,7 +143,7 @@ class IdempotencyDynamoRepositoryTest {
                 .thenReturn(stored(IdempotencyStatus.IN_PROGRESS, NOW.plusSeconds(10)));
 
         // When / Then
-        StepVerifier.create(repository.claim(CUSTOMER_ID, KEY, FINGERPRINT, NOW))
+        StepVerifier.create(repository.claim(SCOPE, KEY, FINGERPRINT, NOW))
                 .assertNext(claim -> assertThat(claim).isInstanceOf(IdempotencyClaim.Existing.class))
                 .verifyComplete();
     }
@@ -156,7 +156,7 @@ class IdempotencyDynamoRepositoryTest {
                 .thenReturn(CompletableFuture.completedFuture(UpdateItemResponse.builder().build()));
 
         // When / Then
-        StepVerifier.create(repository.complete(CUSTOMER_ID, KEY, LOCK_TOKEN,
+        StepVerifier.create(repository.complete(SCOPE, KEY, LOCK_TOKEN,
                         new PlacementOutcome.Rejected(BusinessErrorMessage.TICKETS_SOLD_OUT)))
                 .verifyComplete();
         UpdateItemRequest request = captor.getValue();
@@ -174,7 +174,7 @@ class IdempotencyDynamoRepositoryTest {
         when(client.updateItem(any(UpdateItemRequest.class))).thenReturn(conditionFailed());
 
         // When / Then
-        StepVerifier.create(repository.complete(CUSTOMER_ID, KEY, LOCK_TOKEN,
+        StepVerifier.create(repository.complete(SCOPE, KEY, LOCK_TOKEN,
                         new PlacementOutcome.Rejected(BusinessErrorMessage.TICKETS_SOLD_OUT)))
                 .verifyComplete();
     }
@@ -187,7 +187,7 @@ class IdempotencyDynamoRepositoryTest {
                 .thenReturn(CompletableFuture.completedFuture(DeleteItemResponse.builder().build()));
 
         // When / Then
-        StepVerifier.create(repository.release(CUSTOMER_ID, KEY, LOCK_TOKEN))
+        StepVerifier.create(repository.release(SCOPE, KEY, LOCK_TOKEN))
                 .verifyComplete();
         assertThat(captor.getValue().conditionExpression()).isEqualTo("#status = :inProgress AND lockToken = :token");
     }
@@ -198,7 +198,7 @@ class IdempotencyDynamoRepositoryTest {
         when(client.deleteItem(any(DeleteItemRequest.class))).thenReturn(conditionFailed());
 
         // When / Then
-        StepVerifier.create(repository.release(CUSTOMER_ID, KEY, LOCK_TOKEN))
+        StepVerifier.create(repository.release(SCOPE, KEY, LOCK_TOKEN))
                 .verifyComplete();
     }
 
@@ -209,7 +209,7 @@ class IdempotencyDynamoRepositoryTest {
                 .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("database down")));
 
         // When / Then
-        StepVerifier.create(repository.release(CUSTOMER_ID, KEY, LOCK_TOKEN))
+        StepVerifier.create(repository.release(SCOPE, KEY, LOCK_TOKEN))
                 .expectError(TechnicalException.class)
                 .verify();
     }
@@ -220,7 +220,7 @@ class IdempotencyDynamoRepositoryTest {
 
     private CompletableFuture<GetItemResponse> stored(IdempotencyStatus status, Instant lockedUntil) {
         Map<String, AttributeValue> item = new HashMap<>();
-        item.put("idempotencyId", AttributeValue.fromS(mapper.idempotencyId(CUSTOMER_ID, KEY)));
+        item.put("idempotencyId", AttributeValue.fromS(mapper.idempotencyId(SCOPE, KEY)));
         item.put("requestHash", AttributeValue.fromS(FINGERPRINT.value()));
         item.put("status", AttributeValue.fromS(status.name()));
         item.put("lockToken", AttributeValue.fromS(LOCK_TOKEN.toString()));

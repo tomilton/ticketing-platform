@@ -7,6 +7,7 @@ import co.com.nequi.ticketing.model.enums.IdempotencyStatus;
 import co.com.nequi.ticketing.model.enums.OrderStatus;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyRecord;
+import co.com.nequi.ticketing.model.idempotency.IdempotencyScope;
 import co.com.nequi.ticketing.model.idempotency.RequestFingerprint;
 import co.com.nequi.ticketing.model.order.OrderId;
 import co.com.nequi.ticketing.model.order.PlacementOutcome;
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class IdempotencyEntityMapperTest {
 
     private static final CustomerId CUSTOMER_ID = new CustomerId(UUID.randomUUID());
+    private static final IdempotencyScope SCOPE = IdempotencyScope.ofCustomer(CUSTOMER_ID);
     private static final IdempotencyKey KEY = new IdempotencyKey(UUID.randomUUID());
     private static final RequestFingerprint FINGERPRINT = RequestFingerprint.of(EventId.newId(), new Quantity(2));
     private static final UUID LOCK_TOKEN = UUID.randomUUID();
@@ -35,9 +37,21 @@ class IdempotencyEntityMapperTest {
     private final IdempotencyEntityMapper mapper = new IdempotencyEntityMapper();
 
     @Test
-    void shouldJoinCustomerAndKeyWhenIdIsBuilt() {
+    void shouldJoinScopeAndKeyWhenIdIsBuilt() {
         // When / Then
-        assertThat(mapper.idempotencyId(CUSTOMER_ID, KEY)).isEqualTo(CUSTOMER_ID.value() + "#" + KEY.value());
+        assertThat(mapper.idempotencyId(SCOPE, KEY)).isEqualTo(CUSTOMER_ID.value() + "#" + KEY.value());
+    }
+
+    @Test
+    void shouldRebuildAdministratorScopeWhenIdHasSeveralSeparators() {
+        // Given
+        IdempotencyScope administrator = IdempotencyScope.ofAdministrator(CUSTOMER_ID);
+        Map<String, AttributeValue> item = baseItem(IdempotencyStatus.IN_PROGRESS);
+        item.put(IdempotencyEntityMapper.IDEMPOTENCY_ID, AttributeValue.fromS(mapper.idempotencyId(administrator, KEY)));
+
+        // When / Then
+        assertThat(mapper.toDomain(item)).isEqualTo(new IdempotencyRecord(administrator, KEY, FINGERPRINT,
+                IdempotencyStatus.IN_PROGRESS, LOCK_TOKEN, LOCKED_UNTIL, null));
     }
 
     @Test
@@ -46,7 +60,7 @@ class IdempotencyEntityMapperTest {
         Map<String, AttributeValue> item = baseItem(IdempotencyStatus.IN_PROGRESS);
 
         // When / Then
-        assertThat(mapper.toDomain(item)).isEqualTo(new IdempotencyRecord(CUSTOMER_ID, KEY, FINGERPRINT,
+        assertThat(mapper.toDomain(item)).isEqualTo(new IdempotencyRecord(SCOPE, KEY, FINGERPRINT,
                 IdempotencyStatus.IN_PROGRESS, LOCK_TOKEN, LOCKED_UNTIL, null));
     }
 
@@ -88,6 +102,16 @@ class IdempotencyEntityMapperTest {
     }
 
     @Test
+    void shouldFailWithDynamoDbErrorWhenIdHasNoScope() {
+        // Given
+        Map<String, AttributeValue> item = baseItem(IdempotencyStatus.IN_PROGRESS);
+        item.put(IdempotencyEntityMapper.IDEMPOTENCY_ID, AttributeValue.fromS("#" + KEY.value()));
+
+        // When / Then
+        assertDataError(item);
+    }
+
+    @Test
     void shouldFailWithDynamoDbErrorWhenStoredErrorCodeIsUnknown() {
         // Given
         Map<String, AttributeValue> item = baseItem(IdempotencyStatus.COMPLETED);
@@ -107,7 +131,7 @@ class IdempotencyEntityMapperTest {
 
     private Map<String, AttributeValue> baseItem(IdempotencyStatus status) {
         Map<String, AttributeValue> item = new HashMap<>();
-        item.put(IdempotencyEntityMapper.IDEMPOTENCY_ID, AttributeValue.fromS(mapper.idempotencyId(CUSTOMER_ID, KEY)));
+        item.put(IdempotencyEntityMapper.IDEMPOTENCY_ID, AttributeValue.fromS(mapper.idempotencyId(SCOPE, KEY)));
         item.put(IdempotencyEntityMapper.REQUEST_HASH, AttributeValue.fromS(FINGERPRINT.value()));
         item.put(IdempotencyEntityMapper.STATUS, AttributeValue.fromS(status.name()));
         item.put(IdempotencyEntityMapper.LOCK_TOKEN, AttributeValue.fromS(LOCK_TOKEN.toString()));
