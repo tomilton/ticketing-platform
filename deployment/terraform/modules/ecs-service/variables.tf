@@ -18,13 +18,28 @@ variable "region" {
   type        = string
 }
 
+variable "ecr_repository_arn" {
+  description = "ARN of the ECR repository the execution role pulls from."
+  type        = string
+}
+
 variable "container_port" {
   description = "Port of the application, the value of APP_PORT."
   type        = number
 }
 
+variable "log_retention_days" {
+  description = "Days the application logs are kept."
+  type        = number
+}
+
 variable "table_names" {
   description = "Names of the seven tables, by logical name."
+  type        = map(string)
+}
+
+variable "table_arns" {
+  description = "ARNs of the seven tables, by logical name."
   type        = map(string)
 }
 
@@ -45,6 +60,11 @@ variable "queue" {
     dead_letter_queue_name = string
     dead_letter_queue_arn  = string
   })
+}
+
+variable "kms_key_arns" {
+  description = "Keys of the tables and the queues the tasks use."
+  type        = list(string)
 }
 
 variable "settings" {
