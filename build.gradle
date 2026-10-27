@@ -69,7 +69,8 @@ subprojects {
 def applicationYamlFiles = files('applications/app-service/src/main/resources/application.yaml',
         'applications/app-service/src/main/resources/application-local.yaml')
 def environmentExampleFile = file('deployment/.env.example')
-def terraformFiles = fileTree('deployment/terraform') { include '**/*.tf' }
+// The task definition of the ecs-service module is where the application variables reach AWS.
+def terraformFiles = fileTree('deployment/terraform/modules/ecs-service') { include 'environment.tf' }
 
 // C051: every ${VAR} of the application configuration exists in deployment/.env.example and the other
 // way round. Variables read directly by the AWS SDK, Spring or the containers are allowed.
