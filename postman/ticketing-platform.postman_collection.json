@@ -227,7 +227,7 @@
     },
     {
       "name": "2. Pago rechazado",
-      "description": "Requiere recrear el worker con PAYMENT_SIMULATOR_MODE=DECLINE (ver deployment/README.md). La orden termina CANCELLED y las entradas vuelven a estar disponibles.",
+      "description": "Requiere recrear el worker con PAYMENT_SIMULATOR_MODE=DECLINE (ver deployment/README.md). La orden termina CANCELLED y las entradas vuelven a estar disponibles. Otros modos del simulador (README, Modos del simulador de pagos): APPROVE vende; RANDOM aprueba con PAYMENT_SIMULATOR_APPROVAL_RATE y repite la decisión para la misma orden; SLOW y DOWN fallan cada cobro con TKT0007, el mensaje llega a la DLQ y el barrido deja la orden EXPIRED al vencer. Con RANDOM, SLOW o DOWN las aserciones de este flujo no aplican.",
       "item": [
         {
           "name": "Crear evento (5 entradas)",

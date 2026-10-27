@@ -5,6 +5,21 @@ Todos los cambios relevantes del proyecto se registran en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el proyecto usa
 [versionamiento semántico](https://semver.org/lang/es/).
 
+## [1.2.1] - Unreleased
+
+### Added
+
+- Modos de demostración del simulador de pagos: `RANDOM` aprueba con la probabilidad
+  `PAYMENT_SIMULATOR_APPROVAL_RATE` y decide solo por el `orderId`, así que repite la respuesta tras
+  un reintento o un reinicio; `SLOW` responde después de `PAYMENT_SIMULATOR_SLOW_LATENCY`, mayor que
+  el timeout del cobro; `DOWN` falla todos los cobros. `SLOW` y `DOWN` responden `TKT0007` y muestran
+  los reintentos, la DLQ y el vencimiento con reembolso.
+
+### Changed
+
+- Un error inesperado del simulador de pagos responde `TKT0009` en lugar de `TKT0007`.
+- README: modos del simulador y la demora propia de SQS al recrear el worker con un mensaje en vuelo.
+
 ## [1.2.0] - Unreleased
 
 ### Added

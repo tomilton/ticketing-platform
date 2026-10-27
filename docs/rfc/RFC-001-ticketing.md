@@ -674,7 +674,7 @@ Desde el 23 de marzo de 2026, las versiones nuevas de LocalStack requieren cuent
 
 | Variable de entorno | Valores | Para qué sirve |
 | --- | --- | --- |
-| `PAYMENT_SIMULATOR_MODE` | `APPROVE` (despliegue), `DECLINE`, `PENDING` | `PENDING` deja la orden en `PENDING_CONFIRMATION` esperando un webhook que nunca llega, así se ve vencer; `DECLINE` muestra la cancelación |
+| `PAYMENT_SIMULATOR_MODE` | `APPROVE` (despliegue), `DECLINE`, `RANDOM`, `SLOW`, `DOWN` | `DECLINE` muestra la cancelación; `RANDOM` aprueba con `PAYMENT_SIMULATOR_APPROVAL_RATE` y decide solo por el `orderId`; `SLOW` (más lento que el timeout) y `DOWN` (pasarela caída) fallan con `TKT0007`, muestran los reintentos y la DLQ, y dejan la orden en `PENDING_CONFIRMATION` hasta que el barrido la vence y pide el reembolso |
 | `RESERVATION_TTL` | `PT10M` en despliegue; `PT1M` en local | Ver la expiración en un minuto en lugar de diez |
 | `SWEEPER_INTERVAL` | `PT30S` en despliegue; `PT10S` en local | Ver la liberación física rápido |
 
@@ -745,7 +745,7 @@ El repositorio se construye por features con Spec-Driven Development. Cada una s
 | 001 | Eventos, inventario por porciones y disponibilidad (individual, por lote y SSE) | Entregada |
 | 002 | Compra con reserva atómica, idempotencia, cola con DLQ, worker, simulador de pagos y consulta de la orden | Entregada |
 | 003 | Barrido de reservas vencidas con lock distribuido y entradas de cortesía | Entregada |
-| 003b | Modos de demostración del simulador (lento, aleatorio, caído) | Siguiente |
+| 003b | Modos de demostración del simulador (lento, aleatorio, caído) | Entregada |
 | 004 | Seguridad y resiliencia: JWT, rol de administrador, rate limiting, webhook firmado, circuit breaker | Siguiente |
 | 005 | Infraestructura en AWS con Terraform | Siguiente |
 
