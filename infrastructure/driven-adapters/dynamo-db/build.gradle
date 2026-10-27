@@ -1,10 +1,14 @@
 dependencies {
+    implementation project(':commons')
     implementation 'software.amazon.awssdk:dynamodb-enhanced'
     implementation 'software.amazon.awssdk:netty-nio-client'
-    implementation "org.reactivecommons.utils:object-mapper-api:${objectMapperVersion}"
     implementation "org.mapstruct:mapstruct:${mapstructVersion}"
     annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
-    testImplementation "org.reactivecommons.utils:object-mapper:${objectMapperVersion}"
+    compileOnly 'org.springframework.boot:spring-boot-starter'
+    compileOnly 'org.springframework.boot:spring-boot-health'
+    compileOnly 'jakarta.validation:jakarta.validation-api'
+    testImplementation 'org.springframework.boot:spring-boot-starter'
+    testImplementation 'org.springframework.boot:spring-boot-health'
     testImplementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
     testImplementation 'org.testcontainers:testcontainers-localstack'
     testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
