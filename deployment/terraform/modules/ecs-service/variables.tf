@@ -23,6 +23,11 @@ variable "cluster_arn" {
   type        = string
 }
 
+variable "cluster_name" {
+  description = "Name of the ECS cluster, a dimension of the scaling target."
+  type        = string
+}
+
 variable "image" {
   description = "Image of the application in ECR, with its tag or digest; the same for the API and the worker."
   type        = string
@@ -55,6 +60,11 @@ variable "health_check_path" {
 
 variable "min_capacity" {
   description = "Minimum number of tasks; at least 2 in production."
+  type        = number
+}
+
+variable "max_capacity" {
+  description = "Maximum number of tasks."
   type        = number
 }
 
@@ -135,4 +145,13 @@ variable "settings" {
     condition     = toset(keys(var.settings)) == toset(local.setting_names)
     error_message = "The settings must declare exactly the variables listed in local.setting_names."
   }
+}
+
+variable "scaling" {
+  description = "Scaling targets: CPU and requests per task for the API, visible messages per step for the worker."
+  type = object({
+    cpu_percent           = number
+    requests_per_target   = number
+    messages_per_scale_up = number
+  })
 }
