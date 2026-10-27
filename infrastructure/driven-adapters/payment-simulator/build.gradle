@@ -1,0 +1,12 @@
+dependencies {
+    implementation project(':commons')
+    compileOnly 'org.springframework.boot:spring-boot-starter'
+    compileOnly 'jakarta.validation:jakarta.validation-api'
+    testImplementation 'org.springframework.boot:spring-boot-starter'
+    testImplementation "io.projectreactor.tools:blockhound:${blockhoundVersion}"
+    testImplementation "io.projectreactor.tools:blockhound-junit-platform:${blockhoundVersion}"
+}
+
+tasks.named('test') {
+    jvmArgs '-XX:+AllowRedefinitionToAddDeleteMethods', '-XX:+EnableDynamicAgentLoading'
+}
