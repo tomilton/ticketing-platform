@@ -63,6 +63,7 @@ locals {
     JWT_MODE                             = "JWKS"
     RATE_LIMIT_ORDERS_PER_PERIOD         = "10"
     RATE_LIMIT_ORDERS_PERIOD             = "PT1M"
+    HTTP_MAX_BODY_SIZE                   = "16KB"
     ROUTES_BASE_PATH                     = "/api/v1"
     ROUTES_EVENTS                        = "/events"
     ROUTES_EVENT_BY_ID                   = "/events/{eventId}"

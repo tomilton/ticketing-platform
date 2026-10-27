@@ -1,6 +1,8 @@
 spring:
   profiles:
     active: local
+  codec:
+    max-in-memory-size: 16KB
 app:
   role: api
   cors:

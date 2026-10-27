@@ -5,6 +5,8 @@ spring:
     name: ticketing-platform-test
   reactor:
     context-propagation: auto
+  codec:
+    max-in-memory-size: 16KB
 logging:
   structured:
     format:

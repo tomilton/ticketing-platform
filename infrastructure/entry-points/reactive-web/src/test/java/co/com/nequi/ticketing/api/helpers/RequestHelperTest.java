@@ -23,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class RequestHelperTest {
 
+    private static final Integer MAXIMUM_BODY_BYTES = 64;
+
     @Test
     void shouldReadBodyWhenJsonIsValid() {
         // Given
@@ -85,6 +87,22 @@ class RequestHelperTest {
         // When / Then
         StepVerifier.create(RequestHelper.bodyToMonoOrFailWhenEmpty(strictRequest("{\"quantity\":"), QuantityDto.class))
                 .expectErrorSatisfies(error -> assertTechnicalError(error, TechnicalErrorMessage.INVALID_JSON))
+                .verify();
+    }
+
+    @Test
+    void shouldFailWithPayloadTooLargeWhenBodyExceedsMaximum() {
+        // Given
+        MockServerHttpRequest httpRequest = MockServerHttpRequest.post("/events")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"name\":\"" + "x".repeat(MAXIMUM_BODY_BYTES) + "\"}");
+        ServerRequest request = ServerRequest.create(MockServerWebExchange.from(httpRequest),
+                HandlerStrategies.builder().codecs(codecs -> codecs.defaultCodecs().maxInMemorySize(MAXIMUM_BODY_BYTES))
+                        .build().messageReaders());
+
+        // When / Then
+        StepVerifier.create(RequestHelper.bodyToMonoOrFailWhenEmpty(request, SampleDto.class))
+                .expectErrorSatisfies(error -> assertTechnicalError(error, TechnicalErrorMessage.PAYLOAD_TOO_LARGE))
                 .verify();
     }
 

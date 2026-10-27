@@ -5,6 +5,8 @@ spring:
     name: ${APP_NAME}
   reactor:
     context-propagation: ${REACTOR_CONTEXT_PROPAGATION}
+  codec:
+    max-in-memory-size: ${HTTP_MAX_BODY_SIZE}
 logging:
   structured:
     format:
