@@ -77,7 +77,8 @@ tasks.register('verifyEnvironmentParity') {
     group = 'verification'
     description = 'Checks that application*.yaml and deployment/.env.example declare the same variables'
     inputs.files(applicationYamlFiles, environmentExampleFile)
-    def allowedOnlyInEnvironment = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'SPRING_PROFILES_ACTIVE', 'SONAR_PORT'] as Set
+    def allowedOnlyInEnvironment = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'SPRING_PROFILES_ACTIVE', 'SONAR_PORT',
+            'SQS_MAX_RECEIVE_COUNT', 'SQS_VISIBILITY_TIMEOUT_SECONDS', 'WORKER_PORT'] as Set
     doLast {
         def placeholder = ~/\$\{([A-Z0-9_]+)}/
         def yamlVariables = applicationYamlFiles.files.collectMany { yaml -> (yaml.text =~ placeholder).collect { it[1] } } as Set

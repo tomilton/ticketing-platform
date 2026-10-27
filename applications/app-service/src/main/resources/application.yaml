@@ -38,6 +38,12 @@ adapters:
     pending-publication-index: ${DYNAMODB_PENDING_PUBLICATION_INDEX}
     transaction-conflict-retries: ${DYNAMODB_TRANSACTION_CONFLICT_RETRIES}
     reserve-timeout: ${DYNAMODB_RESERVE_TIMEOUT}
+  sqs:
+    sender:
+      order-placed-queue: ${SQS_ORDER_PLACED_QUEUE}
+    listener:
+      order-placed-queue: ${SQS_ORDER_PLACED_QUEUE}
+      order-placed-dlq: ${SQS_ORDER_PLACED_DLQ}
 inventory:
   shard-count: ${INVENTORY_SHARD_COUNT}
 availability:

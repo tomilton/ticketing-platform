@@ -36,6 +36,12 @@ adapters:
     pending-publication-index: pending-publication
     transaction-conflict-retries: 10
     reserve-timeout: 5s
+  sqs:
+    sender:
+      order-placed-queue: order-placed
+    listener:
+      order-placed-queue: order-placed
+      order-placed-dlq: order-placed-dlq
 inventory:
   shard-count: 3
 availability:
