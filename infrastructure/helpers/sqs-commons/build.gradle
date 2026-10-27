@@ -1,4 +1,7 @@
 dependencies {
+    compileOnly 'org.springframework:spring-context'
+    compileOnly 'tools.jackson.core:jackson-databind'
+    testImplementation 'tools.jackson.core:jackson-databind'
     implementation project(':commons')
     testImplementation "io.projectreactor.tools:blockhound:${blockhoundVersion}"
     testImplementation "io.projectreactor.tools:blockhound-junit-platform:${blockhoundVersion}"
