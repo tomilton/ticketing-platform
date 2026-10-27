@@ -72,7 +72,9 @@ class EventDynamoRepositoryTest {
     @BeforeEach
     void setUp() {
         DynamoDbProperties properties = new DynamoDbProperties("us-east-1", null, EVENTS_TABLE, INVENTORY_TABLE,
-                INDEX, Duration.ofSeconds(2), Duration.ofMillis(500), 2, Duration.ofSeconds(1));
+                INDEX, Duration.ofSeconds(2), Duration.ofMillis(500), 2, Duration.ofSeconds(1),
+                "orders", "order_audit", "idempotency", "customer_event_limits", "expiring-reservations",
+                "pending-publication", 10, Duration.ofSeconds(5));
         repository = new EventDynamoRepository(client, properties, eventMapper,
                 Mappers.getMapper(InventoryShardEntityMapper.class), cursorCodec, new DynamoDbBatchReader(client));
     }

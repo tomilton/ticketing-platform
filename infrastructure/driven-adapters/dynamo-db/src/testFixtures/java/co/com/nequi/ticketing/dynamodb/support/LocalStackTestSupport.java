@@ -76,7 +76,9 @@ public final class LocalStackTestSupport {
         start();
         return new DynamoDbProperties(CONTAINER.getRegion(), CONTAINER.getEndpoint().toString(), EVENTS_TABLE,
                 INVENTORY_TABLE, EVENTS_BY_STATUS_DATE_INDEX, Duration.ofSeconds(5), Duration.ofSeconds(2), 4,
-                Duration.ofSeconds(2));
+                Duration.ofSeconds(2),
+                "orders", "order_audit", "idempotency", "customer_event_limits", "expiring-reservations",
+                "pending-publication", 10, Duration.ofSeconds(5));
     }
 
     /**

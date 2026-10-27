@@ -28,6 +28,14 @@ adapters:
     api-call-attempt-timeout: 2s
     batch-concurrency: 4
     health-check-timeout: 2s
+    orders-table: orders
+    order-audit-table: order_audit
+    idempotency-table: idempotency
+    customer-limits-table: customer_event_limits
+    expiring-reservations-index: expiring-reservations
+    pending-publication-index: pending-publication
+    transaction-conflict-retries: 10
+    reserve-timeout: 5s
 inventory:
   shard-count: 3
 availability:

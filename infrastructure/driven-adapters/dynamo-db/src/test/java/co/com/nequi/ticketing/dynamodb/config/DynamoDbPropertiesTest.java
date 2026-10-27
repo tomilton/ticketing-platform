@@ -36,6 +36,28 @@ class DynamoDbPropertiesTest {
     }
 
     @Test
+    void shouldThrowIllegalArgumentExceptionWhenConflictRetriesAreLowerThanOne() {
+        // When / Then
+        assertThatThrownBy(() -> new DynamoDbProperties("us-east-1", null, "events", "inventory", "by-status-date",
+                ONE_SECOND, ONE_SECOND, 1, ONE_SECOND, "orders", "order_audit", "idempotency", "customer_event_limits",
+                "expiring-reservations", "pending-publication", 0, ONE_SECOND))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"PT0S", "PT-1S"})
+    void shouldThrowIllegalArgumentExceptionWhenReserveTimeoutIsNotPositive(String timeout) {
+        // Given
+        Duration invalid = Duration.parse(timeout);
+
+        // When / Then
+        assertThatThrownBy(() -> new DynamoDbProperties("us-east-1", null, "events", "inventory", "by-status-date",
+                ONE_SECOND, ONE_SECOND, 1, ONE_SECOND, "orders", "order_audit", "idempotency", "customer_event_limits",
+                "expiring-reservations", "pending-publication", 10, invalid))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void shouldThrowNullPointerExceptionWhenRequiredValueIsNull() {
         // When / Then
         assertThatThrownBy(() -> properties(null, ONE_SECOND, 1, ONE_SECOND))
@@ -50,11 +72,16 @@ class DynamoDbPropertiesTest {
         // Then
         assertThat(properties.batchConcurrency()).isEqualTo(1);
         assertThat(properties.endpoint()).isNull();
+        assertThat(properties.ordersTable()).isEqualTo("orders");
+        assertThat(properties.transactionConflictRetries()).isEqualTo(10);
+        assertThat(properties.reserveTimeout()).isEqualTo(Duration.ofSeconds(5));
     }
 
     private static DynamoDbProperties properties(Duration apiCallTimeout, Duration apiCallAttemptTimeout,
                                                  Integer batchConcurrency, Duration healthCheckTimeout) {
         return new DynamoDbProperties("us-east-1", null, "events", "inventory", "by-status-date",
-                apiCallTimeout, apiCallAttemptTimeout, batchConcurrency, healthCheckTimeout);
+                apiCallTimeout, apiCallAttemptTimeout, batchConcurrency, healthCheckTimeout,
+                "orders", "order_audit", "idempotency", "customer_event_limits", "expiring-reservations",
+                "pending-publication", 10, Duration.ofSeconds(5));
     }
 }

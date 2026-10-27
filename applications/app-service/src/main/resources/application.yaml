@@ -30,6 +30,14 @@ adapters:
     api-call-attempt-timeout: ${DYNAMODB_API_CALL_ATTEMPT_TIMEOUT}
     batch-concurrency: ${DYNAMODB_BATCH_CONCURRENCY}
     health-check-timeout: ${DYNAMODB_HEALTH_CHECK_TIMEOUT}
+    orders-table: ${DYNAMODB_ORDERS_TABLE}
+    order-audit-table: ${DYNAMODB_ORDER_AUDIT_TABLE}
+    idempotency-table: ${DYNAMODB_IDEMPOTENCY_TABLE}
+    customer-limits-table: ${DYNAMODB_CUSTOMER_LIMITS_TABLE}
+    expiring-reservations-index: ${DYNAMODB_EXPIRING_RESERVATIONS_INDEX}
+    pending-publication-index: ${DYNAMODB_PENDING_PUBLICATION_INDEX}
+    transaction-conflict-retries: ${DYNAMODB_TRANSACTION_CONFLICT_RETRIES}
+    reserve-timeout: ${DYNAMODB_RESERVE_TIMEOUT}
 inventory:
   shard-count: ${INVENTORY_SHARD_COUNT}
 availability:
