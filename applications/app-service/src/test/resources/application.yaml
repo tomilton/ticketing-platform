@@ -71,6 +71,13 @@ orders:
   republish-interval: 10s
   republish-grace: 5s
   republish-concurrency: 4
+sweep:
+  interval: 30s
+  lock-lease: 60s
+  batch-size: 500
+  concurrency: 8
+complimentary:
+  max-per-grant: 50
 idempotency:
   ttl: 24h
   lease: 10s

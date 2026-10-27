@@ -73,6 +73,13 @@ orders:
   republish-interval: ${ORDERS_REPUBLISH_INTERVAL}
   republish-grace: ${ORDERS_REPUBLISH_GRACE}
   republish-concurrency: ${ORDERS_REPUBLISH_CONCURRENCY}
+sweep:
+  interval: ${SWEEP_INTERVAL}
+  lock-lease: ${SWEEP_LOCK_LEASE}
+  batch-size: ${SWEEP_BATCH_SIZE}
+  concurrency: ${SWEEP_CONCURRENCY}
+complimentary:
+  max-per-grant: ${COMPLIMENTARY_MAX_PER_GRANT}
 idempotency:
   ttl: ${IDEMPOTENCY_TTL}
   lease: ${IDEMPOTENCY_LEASE}

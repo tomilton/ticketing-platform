@@ -1,9 +1,11 @@
 package co.com.nequi.ticketing.config;
 
 import co.com.nequi.ticketing.model.config.AvailabilityWatchSettings;
+import co.com.nequi.ticketing.model.config.ComplimentarySettings;
 import co.com.nequi.ticketing.model.config.IdempotencySettings;
 import co.com.nequi.ticketing.model.config.InventorySettings;
 import co.com.nequi.ticketing.model.config.OrderSettings;
+import co.com.nequi.ticketing.model.config.SweepSettings;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -19,7 +21,8 @@ import java.util.UUID;
 @Configuration
 @EnableConfigurationProperties({BusinessSettingsConfig.InventoryProperties.class,
         BusinessSettingsConfig.AvailabilityProperties.class, BusinessSettingsConfig.OrderProperties.class,
-        BusinessSettingsConfig.IdempotencyProperties.class})
+        BusinessSettingsConfig.IdempotencyProperties.class, BusinessSettingsConfig.SweepProperties.class,
+        BusinessSettingsConfig.ComplimentaryProperties.class})
 public class BusinessSettingsConfig {
 
     @Bean
@@ -51,6 +54,16 @@ public class BusinessSettingsConfig {
     @Bean
     public IdempotencySettings idempotencySettings(IdempotencyProperties properties) {
         return new IdempotencySettings(properties.ttl(), properties.lease());
+    }
+
+    @Bean
+    public SweepSettings sweepSettings(SweepProperties properties) {
+        return new SweepSettings(properties.lockLease(), properties.batchSize(), properties.concurrency());
+    }
+
+    @Bean
+    public ComplimentarySettings complimentarySettings(ComplimentaryProperties properties) {
+        return new ComplimentarySettings(properties.maxPerGrant());
     }
 
     /**
@@ -93,5 +106,25 @@ public class BusinessSettingsConfig {
      */
     @ConfigurationProperties("idempotency")
     public record IdempotencyProperties(Duration ttl, Duration lease) {
+    }
+
+    /**
+     * The business part of the {@code sweep} block; its interval is read by the scheduler.
+     *
+     * @param lockLease   how long a replica holds the sweep
+     * @param batchSize   the expired orders released in one cycle
+     * @param concurrency the orders released at the same time
+     */
+    @ConfigurationProperties("sweep")
+    public record SweepProperties(Duration lockLease, Integer batchSize, Integer concurrency) {
+    }
+
+    /**
+     * The {@code complimentary} block.
+     *
+     * @param maxPerGrant the tickets of one grant
+     */
+    @ConfigurationProperties("complimentary")
+    public record ComplimentaryProperties(Integer maxPerGrant) {
     }
 }
