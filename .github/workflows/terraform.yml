@@ -36,17 +36,20 @@ jobs:
         run: docker run --rm -v "$PWD/$TF_ROOT:/w" -w /w "$TERRAFORM_IMAGE" fmt -check -recursive
 
       - name: Validate and test each module and environment
+        working-directory: ${{ env.TF_ROOT }}
         run: |
+          # The globs are relative to the Terraform root; failglob stops the job if one matches nothing.
+          shopt -s failglob
           for dir in modules/*/ envs/*/; do
             echo "::group::$dir"
-            docker run --rm -v "$PWD/$TF_ROOT:/w" -w "/w/$dir" "$TERRAFORM_IMAGE" init -backend=false -input=false
-            if [ -d "$TF_ROOT/$dir/tests" ]; then
-              docker run --rm -v "$PWD/$TF_ROOT:/w" -w "/w/$dir" "$TERRAFORM_IMAGE" test
+            docker run --rm -v "$PWD:/w" -w "/w/$dir" "$TERRAFORM_IMAGE" init -backend=false -input=false
+            if [ -d "${dir}tests" ]; then
+              docker run --rm -v "$PWD:/w" -w "/w/$dir" "$TERRAFORM_IMAGE" test
             fi
             echo "::endgroup::"
           done
           for env in dev qa prod; do
-            docker run --rm -v "$PWD/$TF_ROOT:/w" -w "/w/envs/$env" "$TERRAFORM_IMAGE" validate
+            docker run --rm -v "$PWD:/w" -w "/w/envs/$env" "$TERRAFORM_IMAGE" validate
           done
 
       - name: tflint
