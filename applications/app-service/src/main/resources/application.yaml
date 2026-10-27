@@ -20,6 +20,8 @@ routes:
   event-availability: ${ROUTES_EVENT_AVAILABILITY}
   batch-availability: ${ROUTES_BATCH_AVAILABILITY}
   availability-stream: ${ROUTES_AVAILABILITY_STREAM}
+  orders: ${ROUTES_ORDERS}
+  order-by-id: ${ROUTES_ORDER_BY_ID}
 adapters:
   dynamodb:
     region: ${AWS_REGION}

@@ -22,6 +22,8 @@ routes:
   event-availability: /events/{eventId}/availability
   batch-availability: /events/availability
   availability-stream: /events/{eventId}/availability/stream
+  orders: /orders
+  order-by-id: /orders/{orderId}
 adapters:
   dynamodb:
     api-call-timeout: 5s
