@@ -73,10 +73,12 @@ def environmentExampleFile = file('deployment/.env.example')
 def terraformFiles = fileTree('deployment/terraform/modules/ecs-service') { include 'environment.tf' }
 
 // C051: every ${VAR} of the application configuration exists in deployment/.env.example and the other
-// way round. Variables read directly by the AWS SDK, Spring or the containers are allowed.
+// way round. Variables read directly by the AWS SDK, Spring or the containers are allowed. Terraform
+// declares exactly the variables of application.yaml: the local profile is not deployed, and the
+// credentials come from the task role.
 tasks.register('verifyEnvironmentParity') {
     group = 'verification'
-    description = 'Checks that application*.yaml and deployment/.env.example declare the same variables'
+    description = 'Checks that application*.yaml, deployment/.env.example and Terraform declare the same variables'
     inputs.files(applicationYamlFiles, environmentExampleFile, terraformFiles)
     def allowedOnlyInEnvironment = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'SPRING_PROFILES_ACTIVE', 'SONAR_PORT',
             'SQS_MAX_RECEIVE_COUNT', 'SQS_VISIBILITY_TIMEOUT_SECONDS', 'WORKER_PORT'] as Set
@@ -88,14 +90,20 @@ tasks.register('verifyEnvironmentParity') {
                 .collect { line -> line.substring(0, line.indexOf('=')).trim() } as Set
         def missingInEnvironment = yamlVariables - environmentVariables
         def missingInYaml = environmentVariables - yamlVariables - allowedOnlyInEnvironment
+        def missingInTerraform = [] as Set
+        def unknownInTerraform = [] as Set
         if (!terraformFiles.isEmpty()) {
-            def terraformText = terraformFiles.files*.text.join('\n')
+            def terraformDeclaration = ~/(?m)^\s+"?([A-Z][A-Z0-9_]+)"?\s*[=,]/
+            def terraformVariables = terraformFiles.files.collectMany { tf -> (tf.text =~ terraformDeclaration).collect { it[1] } } as Set
             def deployedVariables = (deployedYamlFile.text =~ placeholder).collect { it[1] } as Set
-            missingInEnvironment += deployedVariables.findAll { !terraformText.contains(it) }
+            missingInTerraform = deployedVariables - terraformVariables
+            unknownInTerraform = terraformVariables - deployedVariables
         }
-        if (missingInEnvironment || missingInYaml) {
-            throw new GradleException("Environment parity failed. Missing in .env.example or Terraform: "
-                    + missingInEnvironment.sort() + "; missing in application*.yaml: " + missingInYaml.sort())
+        if (missingInEnvironment || missingInYaml || missingInTerraform || unknownInTerraform) {
+            throw new GradleException("Environment parity failed. Missing in .env.example: " + missingInEnvironment.sort()
+                    + "; missing in application*.yaml: " + missingInYaml.sort()
+                    + "; missing in Terraform: " + missingInTerraform.sort()
+                    + "; in Terraform but not in application.yaml: " + unknownInTerraform.sort())
         }
     }
 }
