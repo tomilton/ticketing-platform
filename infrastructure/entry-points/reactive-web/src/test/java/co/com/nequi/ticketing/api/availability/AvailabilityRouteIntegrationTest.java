@@ -3,6 +3,7 @@ package co.com.nequi.ticketing.api.availability;
 import co.com.nequi.ticketing.api.availability.mapper.AvailabilityMapManagement;
 import co.com.nequi.ticketing.api.availability.mapper.AvailabilityMapperImpl;
 import co.com.nequi.ticketing.api.config.AvailabilityBatchProperties;
+import co.com.nequi.ticketing.api.config.AvailabilityStreamProperties;
 import co.com.nequi.ticketing.api.config.EventPaginationProperties;
 import co.com.nequi.ticketing.api.config.RouteProperties;
 import co.com.nequi.ticketing.api.event.EventHandler;
@@ -22,12 +23,16 @@ import co.com.nequi.ticketing.usecase.getavailability.GetAvailabilityUseCase;
 import co.com.nequi.ticketing.usecase.getbatchavailability.GetBatchAvailabilityUseCase;
 import co.com.nequi.ticketing.usecase.getevent.GetEventUseCase;
 import co.com.nequi.ticketing.usecase.listactiveevents.ListActiveEventsUseCase;
+import co.com.nequi.ticketing.usecase.watchavailability.WatchAvailabilityUseCase;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.webflux.test.autoconfigure.WebFluxTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ContextConfiguration;
@@ -71,6 +76,9 @@ class AvailabilityRouteIntegrationTest {
 
     @MockitoBean
     private ListActiveEventsUseCase listActiveEventsUseCase;
+
+    @MockitoBean
+    private WatchAvailabilityUseCase watchAvailabilityUseCase;
 
     @Test
     void shouldReturnCountersWhenEventExists() {
@@ -164,11 +172,17 @@ class AvailabilityRouteIntegrationTest {
 
     @Configuration
     @EnableConfigurationProperties({RouteProperties.class, EventPaginationProperties.class,
-            AvailabilityBatchProperties.class})
-    @Import({AvailabilityRouterRest.class, AvailabilityHandler.class, AvailabilityMapperImpl.class,
+            AvailabilityBatchProperties.class, AvailabilityStreamProperties.class})
+    @Import({AvailabilityRouterRest.class, AvailabilityHandler.class, AvailabilityStreamHub.class,
+            AvailabilityMapperImpl.class,
             AvailabilityMapManagement.class, EventRouterRest.class, EventHandler.class, EventMapperImpl.class,
             EventMapManagement.class, BeanValidator.class, GlobalErrorWebExceptionHandler.class,
             ErrorResponseBuilder.class, ErrorStatusMapper.class})
     static class AvailabilityRouteTestConfig {
+
+        @Bean
+        MeterRegistry meterRegistry() {
+            return new SimpleMeterRegistry();
+        }
     }
 }

@@ -25,6 +25,8 @@ public class AvailabilityRouterRest {
         return SpringdocRouteBuilder.route()
                 .GET(routes.batchAvailabilityPath(), handler::getBatchAvailability,
                         AvailabilityOpenApi::getBatchAvailability)
+                .GET(routes.availabilityStreamPath(), handler::streamAvailability,
+                        AvailabilityOpenApi::streamAvailability)
                 .GET(routes.eventAvailabilityPath(), handler::getAvailability, AvailabilityOpenApi::getAvailability)
                 .build();
     }
