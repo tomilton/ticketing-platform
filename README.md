@@ -105,8 +105,10 @@ mismas variables. Las más útiles para probar:
 | `APP_ROLE` | `api` / `worker` | Rol del proceso |
 | `ORDERS_RESERVATION_TTL` | `PT10M` | Duración de una reserva |
 | `ORDERS_MAX_TICKETS_PER_ORDER`, `ORDERS_MAX_TICKETS_PER_CUSTOMER` | `6`, `6` | Límites de compra |
-| `PAYMENT_SIMULATOR_MODE` | `APPROVE` | `APPROVE` o `DECLINE` (simulador de pagos del worker) |
+| `PAYMENT_SIMULATOR_MODE` | `APPROVE` | `APPROVE`, `DECLINE`, `RANDOM`, `SLOW` o `DOWN` (ver [Modos del simulador de pagos](#modos-del-simulador-de-pagos)) |
 | `PAYMENT_SIMULATOR_LATENCY` | `PT0.2S` | Latencia simulada del cobro |
+| `PAYMENT_SIMULATOR_APPROVAL_RATE` | `0.5` | Probabilidad de aprobación en `RANDOM`, de 0 a 1 |
+| `PAYMENT_SIMULATOR_SLOW_LATENCY` | `PT5S` | Demora del cobro en `SLOW`; debe superar `PAYMENT_TIMEOUT` |
 | `SWEEP_INTERVAL` | `PT30S` | Cada cuánto corre el barrido de reservas vencidas |
 | `SWEEP_LOCK_LEASE` | `PT60S` | Lease del lock del barrido entre réplicas |
 | `SWEEP_BATCH_SIZE`, `SWEEP_CONCURRENCY` | `500`, `8` | Órdenes por ciclo y en paralelo |
@@ -202,6 +204,47 @@ docker compose -f docker-compose.yml -f override.yml up -d --no-deps ticketing-a
 # la disponibilidad recupera las 2 entradas
 docker compose up -d --no-deps ticketing-api ticketing-worker   # restaurar
 ```
+
+### Modos del simulador de pagos
+
+El worker cobra contra un simulador que responde según `PAYMENT_SIMULATOR_MODE`. Cada modo muestra
+un camino distinto del sistema; en todos, una misma orden cuenta a lo sumo un cobro y el reembolso es
+idempotente.
+
+| Modo | Qué hace el simulador | Qué se observa |
+| --- | --- | --- |
+| `APPROVE` | Aprueba todos los cobros | La orden pasa a `SOLD` |
+| `DECLINE` | Rechaza todos los cobros | La orden pasa a `CANCELLED` y las entradas vuelven a estar disponibles |
+| `RANDOM` | Aprueba con la probabilidad `PAYMENT_SIMULATOR_APPROVAL_RATE` | Cerca de esa fracción de órdenes termina `SOLD` y el resto `CANCELLED`. La decisión depende solo del `orderId`, así que un reintento o un reinicio del worker repite la misma respuesta |
+| `SLOW` | Responde después de `PAYMENT_SIMULATOR_SLOW_LATENCY`, que supera `PAYMENT_TIMEOUT` | Cada intento falla por timeout con `TKT0007`, SQS reentrega el mensaje y al agotar los intentos pasa a la DLQ. La orden queda en `PENDING_CONFIRMATION` hasta que vence; el barrido la deja `EXPIRED`, libera sus entradas y pide el reembolso |
+| `DOWN` | Falla todos los cobros, como una pasarela caída | Igual que `SLOW`, pero cada intento falla de inmediato con `TKT0007` |
+
+Para cambiar de modo sin reiniciar LocalStack se recrea solo el worker con un override (el bloque
+`environment` tiene precedencia sobre `.env`). Con un TTL corto en la API se ve el vencimiento sin
+esperar los 10 minutos:
+
+```yaml
+services:
+  ticketing-api:
+    environment:
+      ORDERS_RESERVATION_TTL: PT1M
+  ticketing-worker:
+    environment:
+      PAYMENT_SIMULATOR_MODE: DOWN   # o RANDOM, SLOW, DECLINE
+```
+
+```bash
+docker compose -f docker-compose.yml -f override.yml up -d --no-deps ticketing-api ticketing-worker
+# comprar 1 entrada: en el log del worker aparece TKT0007 en cada intento, el mensaje llega a la
+# DLQ tras 5 entregas y, al vencer la reserva, el barrido deja la orden EXPIRED
+docker compose up -d --no-deps ticketing-api ticketing-worker   # restaurar
+```
+
+**Recrear el worker con un mensaje en vuelo.** Si el worker se apaga mientras procesa un mensaje, ese
+mensaje queda oculto en SQS durante el tiempo de visibilidad (`SQS_VISIBILITY_TIMEOUT_SECONDS`, 60 s)
+antes de que el nuevo contenedor lo reciba. No es un error ni se puede acortar desde el cliente: el
+recibo del mensaje lo tenía la conexión del contenedor que se apagó, y el nuevo nunca lo conoce para
+devolverlo. Es el comportamiento normal de SQS; la orden se procesa al reaparecer el mensaje.
 
 ## Colección de Postman
 
@@ -307,8 +350,8 @@ versión se regeneran con `./gradlew resolveAndLockAll --write-locks`.
   rendimiento de DynamoDB. La validación real es una prueba de carga (k6 o Gatling) contra AWS.
 - **Liberación física hasta 30 s más un ciclo** después del vencimiento; la lógica es inmediata. Con
   mensajes con retardo de SQS se podría liberar al segundo.
-- **Simulador de pagos** en lugar de una pasarela real; los modos lento, aleatorio y caído llegan en
-  la feature 003b.
+- **Simulador de pagos** en lugar de una pasarela real, con modos lento, aleatorio y caído para
+  demostrar los reintentos, la DLQ y el vencimiento con reembolso.
 - **En producción** agregaría una sala de espera virtual para los lanzamientos masivos, el outbox
   completo con DynamoDB Streams, asientos numerados, reportes contables desde la auditoría exportada
   a S3 y SLOs con pruebas de caos. El RFC (sección 10.4) lo detalla.
@@ -320,7 +363,7 @@ versión se regeneran con `./gradlew resolveAndLockAll --write-locks`.
 | 001 | Eventos, inventario por porciones y disponibilidad (individual, por lote y SSE) | Entregada |
 | 002 | Compra con reserva atómica, idempotencia, cola con DLQ, worker, simulador de pagos y consulta de la orden | Entregada |
 | 003 | Barrido de reservas vencidas con lock distribuido y entradas de cortesía | Entregada |
-| 003b | Modos de demostración del simulador (lento, aleatorio, caído) | Siguiente |
+| 003b | Modos de demostración del simulador (lento, aleatorio, caído) | Entregada |
 | 004 | Seguridad y resiliencia: JWT, rol de administrador, rate limiting, webhook firmado, circuit breaker | Siguiente |
 | 005 | Infraestructura en AWS con Terraform | Siguiente |
 
