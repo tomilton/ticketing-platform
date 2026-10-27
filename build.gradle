@@ -18,6 +18,20 @@ allprojects {
     repositories {
         mavenCentral()
     }
+    // C037: Trivy reads the Gradle dependencies from the lockfiles.
+    dependencyLocking {
+        lockAllConfigurations()
+    }
+    tasks.register('resolveAndLockAll') {
+        description = 'Resolves every configuration to write the dependency lockfiles (use with --write-locks)'
+        notCompatibleWithConfigurationCache('Resolves configurations at execution time')
+        doFirst {
+            assert gradle.startParameter.writeDependencyLocks : 'Run with --write-locks'
+        }
+        doLast {
+            configurations.findAll { it.canBeResolved }.each { it.resolve() }
+        }
+    }
     dependencies {
 		implementation platform("software.amazon.awssdk:bom:${rootProject.ext.awsSdkVersion}")
     }
