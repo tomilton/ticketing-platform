@@ -247,7 +247,7 @@ Pruebas destacadas:
 | `IdempotencyIntegrationTest` | Repetir una compra con la misma llave devuelve el mismo resultado sin reservar dos veces |
 | `ReservationSweepIntegrationTest` | El barrido libera las reservas vencidas una sola vez, aun con dos réplicas o una carrera con el procesamiento |
 | `ComplimentaryIntegrationTest` | Las cortesías mueven exactamente su cantidad y el barrido nunca las toca |
-| `PlaceOrderLatencyTest` (`./gradlew performanceTest`) | p99 de `POST /orders` por debajo de 150 ms con 20 compras en vuelo contra LocalStack (el objetivo en AWS es 100 ms) |
+| `PlaceOrderLatencyTest` (`./gradlew performanceTest`) | Mide el p99 de `POST /orders` contra LocalStack. Con una compra a la vez da 102 ms (objetivo 150 ms); con 20 en vuelo sube a ~1 s porque LocalStack comparte los recursos del equipo (ver limitaciones) |
 
 Análisis estático y de dependencias, sin instalar nada en la máquina:
 
@@ -300,6 +300,11 @@ versión se regeneran con `./gradlew resolveAndLockAll --write-locks`.
   rate limiting y webhook firmado.
 - **Cortesías no idempotentes:** repetir la solicitud asigna de nuevo. Se agregará una llave de
   idempotencia junto con el rol de administrador.
+- **Latencia bajo concurrencia en local:** con 20 compras simultáneas el p99 de `POST /orders` sube a
+  ~1 s, y `./gradlew performanceTest` no pasa en un equipo de desarrollo. No viene del código: una
+  lectura simple también pasa de 17 ms a 337 ms con esa concurrencia, porque la app, LocalStack y
+  Testcontainers compiten por CPU y memoria en la misma máquina, y LocalStack no reproduce el
+  rendimiento de DynamoDB. La validación real es una prueba de carga (k6 o Gatling) contra AWS.
 - **Liberación física hasta 30 s más un ciclo** después del vencimiento; la lógica es inmediata. Con
   mensajes con retardo de SQS se podría liberar al segundo.
 - **Simulador de pagos** en lugar de una pasarela real; los modos lento, aleatorio y caído llegan en
