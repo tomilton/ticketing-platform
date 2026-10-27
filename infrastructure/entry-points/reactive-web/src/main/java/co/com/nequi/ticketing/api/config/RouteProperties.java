@@ -30,4 +30,12 @@ public record RouteProperties(@NotBlank String basePath,
     public String eventByIdPath() {
         return basePath + eventById;
     }
+
+    public String eventAvailabilityPath() {
+        return basePath + eventAvailability;
+    }
+
+    public String batchAvailabilityPath() {
+        return basePath + batchAvailability;
+    }
 }
