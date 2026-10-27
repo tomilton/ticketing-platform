@@ -4,6 +4,7 @@ import co.com.nequi.ticketing.api.config.RouteProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -32,8 +33,10 @@ public class SecurityConfig {
 
     private static final String ROLE_PREFIX = "ROLE_";
     private static final String HEALTH = "/actuator/health/**";
-    private static final ServerAuthenticationEntryPoint ENTRY_POINT =
-            (exchange, error) -> Mono.error(UNAUTHORIZED.build(error));
+    private static final String BEARER = "Bearer";
+    private static final ServerAuthenticationEntryPoint ENTRY_POINT = (exchange, error) -> Mono.fromRunnable(
+                    () -> exchange.getResponse().getHeaders().set(HttpHeaders.WWW_AUTHENTICATE, BEARER))
+            .then(Mono.defer(() -> Mono.error(UNAUTHORIZED.build(error))));
     private static final ServerAccessDeniedHandler ACCESS_DENIED_HANDLER =
             (exchange, error) -> Mono.error(FORBIDDEN.build(error));
 
