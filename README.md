@@ -25,14 +25,46 @@ docker compose up
 Levanta LocalStack (DynamoDB, SQS y Secrets Manager) con sus recursos y la API. Los pasos
 detallados están en [GETTINGSTARTED.md](GETTINGSTARTED.md).
 
+## API
+
+Base: `http://localhost:8080/api/v1`. Las respuestas exitosas usan `{"meta": {...}, "data": ...}` y
+los errores `{"errors": [{"reason", "code", "message", "domain"}]}` con un código estable del
+catálogo (`TKB`, `TKT`).
+
+```bash
+BASE=http://localhost:8080/api/v1
+
+# Crear un evento (201, TKS0002)
+curl -s -X POST $BASE/events -H 'Content-Type: application/json' \
+  -d '{"name":"Rock al Parque 2027","venue":{"name":"Movistar Arena","city":"Bogota"},"date":"2027-03-20T01:00:00Z","capacity":500}'
+
+# Consultar un evento (200)
+curl -s $BASE/events/{eventId}
+
+# Listar eventos activos con fecha futura, paginados (limit de 1 a 100; cursor opaco de data.nextCursor)
+curl -s "$BASE/events?limit=20"
+
+# Disponibilidad de un evento (lectura fuerte)
+curl -s $BASE/events/{eventId}/availability
+
+# Disponibilidad de hasta 100 eventos; los ids inexistentes se omiten
+curl -s "$BASE/events/availability?ids={eventId1},{eventId2}"
+
+# Disponibilidad en vivo (SSE): estado inicial, luego solo cambios, keepalive cada 15 s
+curl -N $BASE/events/{eventId}/availability/stream
+```
+
 ## Build y pruebas
 
 ```bash
 ./gradlew build
 ```
 
-Incluye `validateStructure`, las pruebas unitarias, la cobertura de JaCoCo y las pruebas de
-mutación.
+Incluye `validateStructure`, el `ArchitectureTest`, las pruebas unitarias y de integración (con
+LocalStack en Testcontainers, necesitan Docker), la verificación de paridad de variables, el gate de
+cobertura combinada de JaCoCo (90 % de líneas) y las pruebas de mutación, que no bloquean el build.
+
+La prueba de latencia (p99 < 100 ms) corre aparte: `./gradlew performanceTest`.
 
 ## Seguridad de dependencias
 
