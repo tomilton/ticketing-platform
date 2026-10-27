@@ -5,14 +5,15 @@ import java.util.Set;
 
 /**
  * Lifecycle status of an order. An active order holds its tickets until it is sold, cancelled or
- * expired.
+ * expired. A complimentary order is created final, with tickets given away by an administrator.
  */
 public enum OrderStatus {
     RESERVED,
     PENDING_CONFIRMATION,
     SOLD,
     CANCELLED,
-    EXPIRED;
+    EXPIRED,
+    COMPLIMENTARY;
 
     private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_TRANSITIONS = Map.of(
             RESERVED, Set.of(PENDING_CONFIRMATION, EXPIRED, CANCELLED),
@@ -30,7 +31,7 @@ public enum OrderStatus {
     /**
      * Tells whether this status is terminal.
      *
-     * @return {@code true} for {@link #SOLD}, {@link #CANCELLED} and {@link #EXPIRED}
+     * @return {@code true} for {@link #SOLD}, {@link #CANCELLED}, {@link #EXPIRED} and {@link #COMPLIMENTARY}
      */
     public boolean isFinal() {
         return !isActive();

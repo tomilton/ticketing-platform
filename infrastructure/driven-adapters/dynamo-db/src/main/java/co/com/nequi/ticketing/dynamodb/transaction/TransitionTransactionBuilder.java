@@ -91,7 +91,7 @@ public class TransitionTransactionBuilder {
         return switch (target) {
             case PENDING_CONFIRMATION, SOLD -> VALID_RESERVATION_CONDITION;
             case EXPIRED -> ENDED_RESERVATION_CONDITION;
-            case RESERVED, CANCELLED -> "";
+            case RESERVED, CANCELLED, COMPLIMENTARY -> "";
         };
     }
 

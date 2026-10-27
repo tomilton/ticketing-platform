@@ -13,7 +13,8 @@ class TicketStatusTest {
             "PENDING_CONFIRMATION, PENDING_CONFIRMATION",
             "SOLD, SOLD",
             "CANCELLED, AVAILABLE",
-            "EXPIRED, AVAILABLE"})
+            "EXPIRED, AVAILABLE",
+            "COMPLIMENTARY, COMPLIMENTARY"})
     void shouldDeriveTicketStatusWhenOrderHasEffectiveStatus(OrderStatus effective, TicketStatus expected) {
         // When / Then
         assertThat(TicketStatus.of(effective)).isEqualTo(expected);
