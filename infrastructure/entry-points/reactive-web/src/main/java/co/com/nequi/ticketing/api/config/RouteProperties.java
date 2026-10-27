@@ -38,4 +38,8 @@ public record RouteProperties(@NotBlank String basePath,
     public String batchAvailabilityPath() {
         return basePath + batchAvailability;
     }
+
+    public String availabilityStreamPath() {
+        return basePath + availabilityStream;
+    }
 }

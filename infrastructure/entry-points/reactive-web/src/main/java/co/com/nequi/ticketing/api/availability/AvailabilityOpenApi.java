@@ -48,6 +48,17 @@ public class AvailabilityOpenApi {
                 .response(error("500", "TKT0005, TKT0009"));
     }
 
+    public static void streamAvailability(Builder operation) {
+        operation.operationId("streamAvailability")
+                .tag(TAG)
+                .summary("Server-sent events with the availability, emitted only when it changes")
+                .parameter(eventIdParameter())
+                .response(responseBuilder().responseCode("200").description("Event stream (text/event-stream)"))
+                .response(error("400", "TKT0001 eventId is not a UUID (JSON, before the stream opens)"))
+                .response(error("404", "TKB0001 event not found (JSON, the stream is not opened)"))
+                .response(error("500", "TKT0005, TKT0009 (JSON, before the stream opens)"));
+    }
+
     static org.springdoc.core.fn.builders.parameter.Builder eventIdParameter() {
         return parameterBuilder().name("eventId").in(ParameterIn.PATH).required(true).implementation(UUID.class);
     }
