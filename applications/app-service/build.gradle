@@ -1,5 +1,7 @@
 
 dependencies {
-	implementation 'org.reactivecommons.utils:object-mapper:0.1.0'
+	implementation "org.reactivecommons.utils:object-mapper:${objectMapperVersion}"
 	implementation 'software.amazon.awssdk:sts'
+	implementation 'org.springframework.boot:spring-boot-micrometer-tracing-opentelemetry'
+	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
 }

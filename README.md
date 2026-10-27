@@ -1,47 +1,41 @@
-# Proyecto Base Implementando Clean Architecture
+# Ticketing Platform
 
-## Antes de Iniciar
+Backend reactivo de venta de entradas para eventos. Expone una API REST para crear y consultar
+eventos y su disponibilidad, garantiza cero sobreventa con escrituras condicionales en DynamoDB y
+procesa las órdenes de forma asíncrona.
 
-Empezaremos por explicar los diferentes componentes del proyectos y partiremos de los componentes externos, continuando con los componentes core de negocio (dominio) y por último el inicio y configuración de la aplicación.
+## Stack
 
-Lee el artículo [Clean Architecture — Aislando los detalles](https://medium.com/bancolombia-tech/clean-architecture-aislando-los-detalles-4f9530f35d7a)
+Java 25, Spring Boot 4.1 con WebFlux, AWS SDK v2 asíncrono (DynamoDB y SQS), Gradle 9 y la
+estructura de Clean Architecture del plugin `co.com.bancolombia.cleanArchitecture`.
 
-# Arquitectura
+## Requisitos
 
-![Clean Architecture](https://miro.medium.com/max/1400/1*ZdlHz8B0-qu9Y-QO3AXR_w.png)
+- Docker con Docker Compose.
+- JDK 25 (Temurin) solo si se compila fuera de Docker.
 
-## Domain
+## Ejecución local
 
-Es el módulo más interno de la arquitectura, pertenece a la capa del dominio y encapsula la lógica y reglas del negocio mediante modelos y entidades del dominio.
+```bash
+cd deployment
+cp .env.example .env
+docker compose up
+```
 
-## Usecases
+Levanta LocalStack (DynamoDB, SQS y Secrets Manager) con sus recursos y la API. Los pasos
+detallados están en [GETTINGSTARTED.md](GETTINGSTARTED.md).
 
-Este módulo gradle perteneciente a la capa del dominio, implementa los casos de uso del sistema, define lógica de aplicación y reacciona a las invocaciones desde el módulo de entry points, orquestando los flujos hacia el módulo de entities.
+## Build y pruebas
 
-## Infrastructure
+```bash
+./gradlew build
+```
 
-### Helpers
+Incluye `validateStructure`, las pruebas unitarias, la cobertura de JaCoCo y las pruebas de
+mutación.
 
-En el apartado de helpers tendremos utilidades generales para los Driven Adapters y Entry Points.
+## Documentación
 
-Estas utilidades no están arraigadas a objetos concretos, se realiza el uso de generics para modelar comportamientos
-genéricos de los diferentes objetos de persistencia que puedan existir, este tipo de implementaciones se realizan
-basadas en el patrón de diseño [Unit of Work y Repository](https://medium.com/@krzychukosobudzki/repository-design-pattern-bc490b256006)
-
-Estas clases no puede existir solas y debe heredarse su compartimiento en los **Driven Adapters**
-
-### Driven Adapters
-
-Los driven adapter representan implementaciones externas a nuestro sistema, como lo son conexiones a servicios rest,
-soap, bases de datos, lectura de archivos planos, y en concreto cualquier origen y fuente de datos con la que debamos
-interactuar.
-
-### Entry Points
-
-Los entry points representan los puntos de entrada de la aplicación o el inicio de los flujos de negocio.
-
-## Application
-
-Este módulo es el más externo de la arquitectura, es el encargado de ensamblar los distintos módulos, resolver las dependencias y crear los beans de los casos de use (UseCases) de forma automática, inyectando en éstos instancias concretas de las dependencias declaradas. Además inicia la aplicación (es el único módulo del proyecto donde encontraremos la función “public static void main(String[] args)”.
-
-**Los beans de los casos de uso se disponibilizan automaticamente gracias a un '@ComponentScan' ubicado en esta capa.**
+- Diseño funcional y técnico: [docs/rfc/RFC-001-ticketing.md](docs/rfc/RFC-001-ticketing.md).
+- Cambios por versión: [CHANGELOG.md](CHANGELOG.md).
+- Cómo contribuir: [CONTRIBUTING.md](CONTRIBUTING.md).

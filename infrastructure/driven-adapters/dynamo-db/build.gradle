@@ -1,5 +1,17 @@
 dependencies {
     implementation 'software.amazon.awssdk:dynamodb-enhanced'
-    implementation 'org.reactivecommons.utils:object-mapper-api:0.1.0'
-    testImplementation 'org.reactivecommons.utils:object-mapper:0.1.0'
+    implementation 'software.amazon.awssdk:netty-nio-client'
+    implementation "org.reactivecommons.utils:object-mapper-api:${objectMapperVersion}"
+    implementation "org.mapstruct:mapstruct:${mapstructVersion}"
+    annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+    testImplementation "org.reactivecommons.utils:object-mapper:${objectMapperVersion}"
+    testImplementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
+    testImplementation 'org.testcontainers:testcontainers-localstack'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation "io.projectreactor.tools:blockhound:${blockhoundVersion}"
+    testImplementation "io.projectreactor.tools:blockhound-junit-platform:${blockhoundVersion}"
+}
+
+tasks.named('test') {
+    jvmArgs '-XX:+AllowRedefinitionToAddDeleteMethods', '-XX:+EnableDynamicAgentLoading'
 }

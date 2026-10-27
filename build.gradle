@@ -5,12 +5,21 @@ plugins {
     id 'info.solidsoft.pitest'
 }
 
+ext {
+    awsSdkVersion = providers.gradleProperty('awsSdkVersion').get()
+    mapstructVersion = providers.gradleProperty('mapstructVersion').get()
+    springdocVersion = providers.gradleProperty('springdocVersion').get()
+    testcontainersVersion = providers.gradleProperty('testcontainersVersion').get()
+    blockhoundVersion = providers.gradleProperty('blockhoundVersion').get()
+    objectMapperVersion = providers.gradleProperty('objectMapperVersion').get()
+}
+
 allprojects {
     repositories {
         mavenCentral()
     }
     dependencies {
-		implementation platform('software.amazon.awssdk:bom:2.57.3')
+		implementation platform("software.amazon.awssdk:bom:${rootProject.ext.awsSdkVersion}")
     }
 }
 
