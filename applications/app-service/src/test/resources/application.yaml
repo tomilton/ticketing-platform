@@ -67,6 +67,7 @@ orders:
   max-tickets-per-order: 6
   max-tickets-per-customer: 6
   reservation-ttl: 10m
+  republish-interval: 10s
   republish-grace: 5s
   republish-concurrency: 4
 idempotency:

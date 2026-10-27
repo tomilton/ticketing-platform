@@ -9,12 +9,6 @@ import org.springframework.context.annotation.FilterType;
         includeFilters = {
                 @ComponentScan.Filter(type = FilterType.REGEX, pattern = "^.+UseCase$")
         },
-        excludeFilters = {
-                // Temporary: the order use cases are registered once every gateway of the orders has an adapter.
-                @ComponentScan.Filter(type = FilterType.REGEX,
-                        pattern = "^co\\.com\\.nequi\\.ticketing\\.usecase\\."
-                                + "(republishpendingorders)\\..+$")
-        },
         useDefaultFilters = false)
 public class UseCasesConfig {
 }
