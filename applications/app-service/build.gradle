@@ -4,4 +4,9 @@ dependencies {
 	implementation 'software.amazon.awssdk:sts'
 	implementation 'org.springframework.boot:spring-boot-micrometer-tracing-opentelemetry'
 	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+	testImplementation(testFixtures(project(':dynamo-db')))
+}
+
+tasks.named('test') {
+	systemProperty 'project.root', rootProject.projectDir.absolutePath
 }

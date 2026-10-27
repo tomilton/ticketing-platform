@@ -1,3 +1,5 @@
+apply plugin: 'java-test-fixtures'
+
 dependencies {
     implementation project(':commons')
     implementation 'software.amazon.awssdk:dynamodb-enhanced'
@@ -12,13 +14,20 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter'
     testImplementation 'org.springframework.boot:spring-boot-health'
     testImplementation 'tools.jackson.core:jackson-databind'
-    testImplementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
-    testImplementation 'org.testcontainers:testcontainers-localstack'
-    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testFixturesImplementation platform("software.amazon.awssdk:bom:${awsSdkVersion}")
+    testFixturesImplementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
+    testFixturesImplementation 'org.testcontainers:testcontainers-localstack'
+    testFixturesImplementation 'software.amazon.awssdk:dynamodb'
+    testFixturesImplementation 'software.amazon.awssdk:netty-nio-client'
     testImplementation "io.projectreactor.tools:blockhound:${blockhoundVersion}"
     testImplementation "io.projectreactor.tools:blockhound-junit-platform:${blockhoundVersion}"
 }
 
 tasks.named('test') {
     jvmArgs '-XX:+AllowRedefinitionToAddDeleteMethods', '-XX:+EnableDynamicAgentLoading'
+    systemProperty 'project.root', rootProject.projectDir.absolutePath
+}
+
+pitest {
+    excludedTestClasses = ['*IntegrationTest']
 }
