@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.Comparator;
 
@@ -21,7 +22,9 @@ public class BeanValidator {
     private final Validator validator;
 
     public <T> Mono<T> validateBeanOrThrowError(T bean) {
+        // Bean Validation reads its message bundles from the classpath, a blocking call.
         return Mono.fromCallable(() -> validator.validate(bean))
+                .subscribeOn(Schedulers.boundedElastic())
                 .flatMapMany(Flux::fromIterable)
                 .sort(Comparator.comparing(violation -> violation.getPropertyPath().toString()))
                 .next()

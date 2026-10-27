@@ -1,6 +1,7 @@
 package co.com.nequi.ticketing.api.commons;
 
 import co.com.nequi.ticketing.model.success.SuccessMessage;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * Metadata of a successful response.
@@ -8,6 +9,7 @@ import co.com.nequi.ticketing.model.success.SuccessMessage;
  * @param code    the stable success code
  * @param message the success message
  */
+@Schema(name = "Meta")
 public record Meta(String code, String message) {
 
     public static Meta getSuccessMeta(SuccessMessage successMessage) {
