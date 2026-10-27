@@ -33,5 +33,5 @@ tasks.named('check') {
 }
 
 pitest {
-	excludedTestClasses = ['co.com.nequi.ticketing.observability.*', 'co.com.nequi.ticketing.performance.*']
+	excludedTestClasses = ['co.com.nequi.ticketing.observability.*', 'co.com.nequi.ticketing.performance.*', '*IntegrationTest']
 }
