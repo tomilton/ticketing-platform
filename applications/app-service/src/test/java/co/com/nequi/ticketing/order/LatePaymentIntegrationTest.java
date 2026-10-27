@@ -146,7 +146,7 @@ class LatePaymentIntegrationTest {
 
     private static PaymentSimulatorGateway approvingGateway() {
         return new PaymentSimulatorGateway(new PaymentSimulatorProperties(PaymentSimulatorProperties.Mode.APPROVE,
-                Duration.ZERO, Duration.ofSeconds(2)));
+                Duration.ZERO, Duration.ofSeconds(2), 0.5, Duration.ofSeconds(5)));
     }
 
     private record Result(ProcessingOutcome outcome, EventInventory inventory, Boolean refunded) {

@@ -58,6 +58,8 @@ adapters:
     mode: ${PAYMENT_SIMULATOR_MODE}
     latency: ${PAYMENT_SIMULATOR_LATENCY}
     timeout: ${PAYMENT_TIMEOUT}
+    approval-rate: ${PAYMENT_SIMULATOR_APPROVAL_RATE}
+    slow-latency: ${PAYMENT_SIMULATOR_SLOW_LATENCY}
 inventory:
   shard-count: ${INVENTORY_SHARD_COUNT}
 availability:

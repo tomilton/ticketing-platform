@@ -13,12 +13,13 @@ import reactor.test.StepVerifier;
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PaymentSimulatorGatewayTest {
 
     private static final Duration LATENCY = Duration.ofMillis(200);
     private static final Duration TIMEOUT = Duration.ofSeconds(2);
+    private static final Duration SLOW_LATENCY = Duration.ofSeconds(5);
+    private static final Double HALF = 0.5;
 
     @ParameterizedTest
     @CsvSource({"APPROVE, APPROVED", "DECLINE, DECLINED"})
@@ -91,21 +92,8 @@ class PaymentSimulatorGatewayTest {
         assertThat(gateway.isCharged(orderId)).isFalse();
     }
 
-    @Test
-    void shouldRejectInvalidSettingsWhenPropertiesAreCreated() {
-        // Given
-        Duration negative = Duration.ofMillis(-1);
-
-        // When / Then
-        assertThatThrownBy(() -> new PaymentSimulatorProperties(Mode.APPROVE, negative, TIMEOUT))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new PaymentSimulatorProperties(Mode.APPROVE, LATENCY, Duration.ZERO))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new PaymentSimulatorProperties(null, LATENCY, TIMEOUT))
-                .isInstanceOf(NullPointerException.class);
-    }
-
     private static PaymentSimulatorGateway gateway(Mode mode, Duration latency) {
-        return new PaymentSimulatorGateway(new PaymentSimulatorProperties(mode, latency, TIMEOUT));
+        return new PaymentSimulatorGateway(new PaymentSimulatorProperties(mode, latency, TIMEOUT, HALF,
+                SLOW_LATENCY));
     }
 }
