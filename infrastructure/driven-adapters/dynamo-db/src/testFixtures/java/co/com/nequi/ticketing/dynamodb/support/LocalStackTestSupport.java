@@ -30,6 +30,7 @@ public final class LocalStackTestSupport {
     public static final String CUSTOMER_LIMITS_TABLE = "customer_event_limits";
     public static final String EXPIRING_RESERVATIONS_INDEX = "expiring-reservations";
     public static final String PENDING_PUBLICATION_INDEX = "pending-publication";
+    public static final String SCHEDULER_LOCKS_TABLE = "scheduler_locks";
     public static final String ORDER_PLACED_QUEUE = "order-placed";
     public static final String ORDER_PLACED_DLQ = "order-placed-dlq";
     public static final String VISIBILITY_TIMEOUT_SECONDS = "5";
@@ -60,6 +61,7 @@ public final class LocalStackTestSupport {
                     Map.entry("DYNAMODB_CUSTOMER_LIMITS_TABLE", CUSTOMER_LIMITS_TABLE),
                     Map.entry("DYNAMODB_EXPIRING_RESERVATIONS_INDEX", EXPIRING_RESERVATIONS_INDEX),
                     Map.entry("DYNAMODB_PENDING_PUBLICATION_INDEX", PENDING_PUBLICATION_INDEX),
+                    Map.entry("DYNAMODB_SCHEDULER_LOCKS_TABLE", SCHEDULER_LOCKS_TABLE),
                     Map.entry("SQS_ORDER_PLACED_QUEUE", ORDER_PLACED_QUEUE),
                     Map.entry("SQS_ORDER_PLACED_DLQ", ORDER_PLACED_DLQ),
                     Map.entry("SQS_VISIBILITY_TIMEOUT_SECONDS", VISIBILITY_TIMEOUT_SECONDS),

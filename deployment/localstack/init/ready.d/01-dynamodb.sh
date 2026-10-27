@@ -1,5 +1,5 @@
 #!/bin/bash
-# Creates the DynamoDB tables of the event catalog and the orders. Idempotent: an existing table is left as is.
+# Creates the DynamoDB tables of the event catalog, the orders and the scheduler locks. Idempotent: an existing table is left as is.
 set -euo pipefail
 
 create_table_if_missing() {
@@ -60,3 +60,7 @@ create_table_if_missing "${DYNAMODB_CUSTOMER_LIMITS_TABLE}" \
   --attribute-definitions AttributeName=limitId,AttributeType=S \
   --key-schema AttributeName=limitId,KeyType=HASH
 enable_ttl "${DYNAMODB_CUSTOMER_LIMITS_TABLE}"
+
+create_table_if_missing "${DYNAMODB_SCHEDULER_LOCKS_TABLE}" \
+  --attribute-definitions AttributeName=lockName,AttributeType=S \
+  --key-schema AttributeName=lockName,KeyType=HASH
