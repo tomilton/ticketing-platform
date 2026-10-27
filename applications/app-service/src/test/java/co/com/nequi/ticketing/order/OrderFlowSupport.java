@@ -2,8 +2,10 @@ package co.com.nequi.ticketing.order;
 
 import co.com.nequi.ticketing.MainApplication;
 import co.com.nequi.ticketing.dynamodb.support.LocalStackTestSupport;
+import co.com.nequi.ticketing.security.TestIdentityProvider;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -26,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static co.com.nequi.ticketing.security.TestIdentityProvider.bearer;
+
 /**
  * Starts the application in the {@code api} and {@code worker} roles against the shared LocalStack
  * container and talks to them as a client would.
@@ -45,6 +49,7 @@ final class OrderFlowSupport {
         properties.put("orders.republish-interval", "1s");
         properties.put("orders.republish-grace", "1s");
         properties.put("adapters.sqs.listener.wait-time", "1s");
+        properties.put(TestIdentityProvider.JWK_SET_URI_PROPERTY, TestIdentityProvider.jwkSetUri());
         properties.putAll(overrides);
         List<String> arguments = new ArrayList<>();
         properties.forEach((name, value) -> arguments.add("--" + name + "=" + value));
@@ -58,7 +63,8 @@ final class OrderFlowSupport {
     }
 
     static Mono<String> createEvent(WebClient client, Integer capacity) {
-        return client.post().uri("/events").contentType(MediaType.APPLICATION_JSON)
+        return client.post().uri("/events").header(HttpHeaders.AUTHORIZATION, bearer(TestIdentityProvider.admin()))
+                .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("{\"name\":\"Flow\",\"venue\":{\"name\":\"Movistar Arena\",\"city\":\"Bogota\"},"
                         + "\"date\":\"2030-03-20T01:00:00Z\",\"capacity\":" + capacity + "}")
                 .retrieve().bodyToMono(String.class)
@@ -67,6 +73,7 @@ final class OrderFlowSupport {
 
     static Mono<String> placeOrder(WebClient client, String customer, String key, String eventId, Integer quantity) {
         return client.post().uri("/orders").header("X-Customer-Id", customer).header("Idempotency-Key", key)
+                .header(HttpHeaders.AUTHORIZATION, bearer(TestIdentityProvider.customer(customer)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("{\"eventId\":\"" + eventId + "\",\"quantity\":" + quantity + "}")
                 .exchangeToMono(response -> response.bodyToMono(String.class));
@@ -74,6 +81,7 @@ final class OrderFlowSupport {
 
     static Mono<JsonNode> order(WebClient client, String customer, String orderId) {
         return client.get().uri("/orders/" + orderId).header("X-Customer-Id", customer)
+                .header(HttpHeaders.AUTHORIZATION, bearer(TestIdentityProvider.customer(customer)))
                 .retrieve().bodyToMono(String.class)
                 .map(body -> JSON.readTree(body).path("data"));
     }

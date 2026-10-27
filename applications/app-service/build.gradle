@@ -5,6 +5,8 @@ dependencies {
 	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
 	testImplementation(testFixtures(project(':dynamo-db')))
 	testImplementation 'org.springframework.boot:spring-boot-starter-webflux-test'
+	testImplementation 'com.nimbusds:nimbus-jose-jwt'
+	testImplementation 'io.projectreactor.netty:reactor-netty-http'
 }
 
 tasks.named('test') {
