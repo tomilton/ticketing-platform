@@ -89,7 +89,7 @@ Agrupan el stack obligatorio, las especificaciones técnicas, los entregables y 
 4. **`PENDING_CONFIRMATION` = esperando confirmación de pago.** El consumidor solicita el pago a un puerto `PaymentGateway`. En local, un simulador con modos configurables. Con una pasarela real, la confirmación llega por webhook firmado. "Confirmar la compra" en RF2 equivale a pago aprobado.
 5. **`COMPLIMENTARY`** se emite por un endpoint administrativo. Descuenta inventario pero no cuenta como venta.
 6. **Límites anti-abuso** configurables: máximo 6 entradas por orden y por cliente por evento (valor por defecto a confirmar con negocio).
-7. **Autenticación** JWT (OAuth2 Resource Server). En el entorno local (application-local.yaml) se acepta un JWT de prueba firmado con una llave local.
+7. **Autenticación** JWT (OAuth2 Resource Server). En el entorno local (application-local.yaml) se acepta un JWT de prueba firmado con una llave local. Mientras llega esta capa (feature 004), la primera entrega identifica al cliente con la cabecera X-Customer-Id (UUID); el JWT la reemplaza por su sub sin cambiar los casos de uso.
 
 ## 3. Modelo de dominio (DDD)
 
@@ -328,7 +328,7 @@ Tres flujos cubren los requisitos de compra: iniciar compra (síncrono, de milis
 
 ![Secuencia: iniciar compra](diagrams/seq-place-order.png)
 
-La API hace en un solo viaje a DynamoDB lo que antes eran cinco pasos sin aislamiento. Si cualquier condición falla, no se escribe nada. Por eso responde 409 de inmediato, sin encolar trabajo que de antemano sabe inútil. El encolado ocurre después de confirmar la transacción.
+La API hace en un solo viaje a DynamoDB lo que antes eran cinco pasos sin aislamiento. Si cualquier condición falla, no se escribe nada. Por eso responde 409 de inmediato, sin encolar trabajo que de antemano sabe inútil. El encolado ocurre después de confirmar la transacción. Si el envío a SQS falla, la compra igual responde 202: la orden nace marcada como pendiente de publicar en un GSI disperso (outbox liviano), y el worker la republica en el siguiente ciclo. Así ninguna orden aceptada queda sin procesar.
 
 Decisión: reservar en la API y no en el consumidor. El usuario sabe en el acto si consiguió entradas, y el consumidor no tiene que rechazar órdenes ya aceptadas. La alternativa "encolar sin reservar" devuelve un `orderId` que luego puede terminar en `SOLD_OUT`, lo que es peor experiencia y genera más carga de consulta de estado (*polling*).
 
@@ -349,7 +349,7 @@ El límite de 10 minutos se cumple exacto porque el vencimiento tiene dos partes
 | **Lógico** | Exactamente en `expiresAt` (minuto 10) | Ninguna venta se confirma después: la transacción de venta exige `expiresAt > :now`. `GET /orders/{id}` ya muestra `EXPIRED` aunque el barrido no haya pasado |
 | **Físico** | En el siguiente barrido, a lo sumo 30 s después | Las entradas vuelven a los contadores de inventario y la orden sale del índice de activas |
 
-El barrido corre cada 30 s y consulta solo órdenes activas gracias a un GSI disperso (sección 6). Un lock distribuido evita que todas las réplicas hagan el mismo trabajo; aunque dos barrieran a la vez, la condición de la transacción hace la liberación idempotente. El lock (ShedLock con DynamoDB) usa un cliente síncrono, pero corre en el hilo del scheduler, nunca en el event loop. Si negocio necesita que también la liberación física sea al segundo, se suma la alternativa de mensajes con retardo de la sección 10.
+El barrido corre cada 30 s y consulta solo órdenes activas gracias a un GSI disperso (sección 6). Un lock distribuido evita que todas las réplicas hagan el mismo trabajo; aunque dos barrieran a la vez, la condición de la transacción hace la liberación idempotente. El lock es una escritura condicional con lease en una tabla de DynamoDB (scheduler\_locks): reactivo y sin dependencias nuevas. Se prefirió a ShedLock porque su proveedor de DynamoDB usa el cliente síncrono. Además, el worker libera en el acto cualquier orden vencida que procese, con la misma transacción condicional; el barrido se encarga de las que ningún mensaje toca. Si negocio necesita que también la liberación física sea al segundo, se suma la alternativa de mensajes con retardo de la sección 10.
 
 **Carrera pago vs. vencimiento.** Las condiciones de ambas transacciones son mutuamente excluyentes: la venta exige `expiresAt > now` y el vencimiento `expiresAt <= now`. Antes del minuto 10 solo puede ganar la venta; después, solo el vencimiento. Si la pasarela aprueba un pago tarde, el consumidor recibe `ConditionalCheckFailed` y dispara el reembolso (compensación). Ambos casos quedan auditados.
 
@@ -530,7 +530,7 @@ Repetir una operación produce el mismo resultado que hacerla una vez: un reinte
 
 ![idempotencia en POST /orders · 3 decisiones, 3 respuestas](diagrams/idempotency-flow.png)
 
-El cliente genera la `Idempotency-Key` (un UUID) una sola vez por intento de compra y la reenvía igual en cada reintento. El registro de la llave se escribe en la misma transacción que la reserva. Por eso no puede existir una reserva sin su llave, ni dos reservas con la misma llave.
+El cliente genera la `Idempotency-Key` (un UUID) una sola vez por intento de compra y la reenvía igual en cada reintento. La llave se maneja en dos fases. Primero se reclama (estado IN\_PROGRESS con un lease de 10 s) y después se cierra (COMPLETED, con el resultado) dentro de la misma transacción que la reserva. Por eso no puede existir una reserva sin su llave, ni dos reservas con la misma llave. El reclamo previo permite responder "en curso" (TKB0006) a un reintento simultáneo y guardar también los rechazos de negocio para repetirlos idénticos. Liberar o cerrar la llave exige que siga IN\_PROGRESS y con el mismo token, así que un timeout después de confirmar nunca borra una llave ya completada. Un error técnico la libera para que el reintento vuelva a intentar.
 
 | Punto | Qué puede llegar repetido | Llave | Cómo se detecta |
 | --- | --- | --- | --- |
@@ -553,7 +553,7 @@ El cliente genera la `Idempotency-Key` (un UUID) una sola vez por intento de com
 | Alcance | Llave compuesta `customerId` (del JWT) + `Idempotency-Key`. Nadie puede adivinar ni reutilizar la llave de otro cliente |
 | Huella del contenido | SHA-256 de `eventId` y `quantity`; nunca datos personales |
 | Vigencia | 24 h (TTL de DynamoDB). Pasado ese tiempo, la misma llave crea una compra nueva |
-| Qué se guarda | El código y el cuerpo de la respuesta exitosa, en la misma transacción que la reserva |
+| Qué se guarda | El resultado definitivo (orden aceptada o rechazo de negocio); el cierre de una compra aceptada va en la misma transacción que la reserva |
 | Qué no se guarda | Rechazos de validación (400) y `SOLD_OUT`: si luego se liberan entradas, el reintento con la misma llave puede comprar |
 
 | Situación | Respuesta |
@@ -608,7 +608,7 @@ En producción, los dos servicios corren en ECS Fargate en subredes privadas, de
 | Cómputo | ECS Fargate | EKS: más operación para dos servicios. Lambda: arranque en frío de JVM y conexiones SSE largas no encajan |
 | Base de datos | DynamoDB on-demand | Aurora: escala de escritura vertical y bloqueos de filas en picos. Provisioned + autoscaling reacciona en minutos, tarde para un lanzamiento; se puede pre-calentar si el evento es conocido |
 | Mensajería | SQS Standard + DLQ | Kafka/MSK: sobredimensionado para colas de trabajo punto a punto |
-| Barrido | EventBridge Scheduler → cola `reservation-sweep` | `@Scheduled` + ShedLock (se usa en local): en AWS se evita mantener el lock |
+| Barrido | EventBridge Scheduler → cola `reservation-sweep` | `@Scheduled` reactivo + lock con escritura condicional (se usa en local): en AWS se evita mantener el lock |
 | Borde | CloudFront + WAF + API Gateway HTTP API con JWT authorizer | ALB público: sin autorización JWT ni *throttling* gestionados |
 | Salida a AWS | VPC endpoints | NAT Gateway: costo por GB y superficie de salida a internet |
 
@@ -718,7 +718,7 @@ La colección de Postman incluye un flujo "Reserva que vence": crear un evento d
 - [ ] Adaptador DynamoDB (transacciones, GSI disperso, shards, `BatchGetItem`) y pruebas de integración
 - [ ] Adaptadores SQS (sender y listener) con DLQ
 - [ ] API WebFlux, manejador global de errores, idempotencia, disponibilidad por lote, SSE
-- [ ] Barrido con ShedLock y re-publicado (outbox liviano)
+- [ ] Barrido con lock condicional y re-publicado (outbox liviano)
 - [ ] Simulador de pagos con modos `APPROVE` / `DECLINE` / `PENDING`, TTL e intervalo configurables
 - [ ] Seguridad: JWT, rate limiting, webhook HMAC
 - [ ] `docker-compose.yml`, scripts de LocalStack, Dockerfile
@@ -735,6 +735,21 @@ La colección de Postman incluye un flujo "Reserva que vence": crear un evento d
 5. Decisiones de arquitectura: resumen de este RFC con enlace a él.
 6. Ejemplos de uso con `curl` de cada endpoint y referencia a la colección de Postman.
 7. Cómo ejecutar las pruebas y ver el reporte de cobertura.
+
+### 10.7 Estado de implementación
+
+El repositorio se construye por features con Spec-Driven Development. Cada una se entrega con su PR, pruebas automatizadas y cobertura mínima del 90 %.
+
+| Feature | Alcance | Estado |
+| --- | --- | --- |
+| 001 | Eventos, inventario por porciones y disponibilidad (individual, por lote y SSE) | Entregada |
+| 002 | Compra con reserva atómica, idempotencia, cola con DLQ, worker, simulador de pagos y consulta de la orden | Entregada |
+| 003 | Barrido de reservas vencidas con lock distribuido y entradas de cortesía | Entregada |
+| 003b | Modos de demostración del simulador (lento, aleatorio, caído) | Siguiente |
+| 004 | Seguridad y resiliencia: JWT, rol de administrador, rate limiting, webhook firmado, circuit breaker | Siguiente |
+| 005 | Infraestructura en AWS con Terraform | Siguiente |
+
+Las secciones 8 y 9 describen el diseño completo de las features 004 y 005, que se incorporan después de la primera entrega.
 
 ### Fuentes
 
