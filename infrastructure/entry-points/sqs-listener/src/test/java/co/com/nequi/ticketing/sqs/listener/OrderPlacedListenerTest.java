@@ -61,6 +61,8 @@ class OrderPlacedListenerTest {
     @Mock
     private ProcessOrderUseCase processOrderUseCase;
 
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+
     private final OrderPlacedMessageCodec codec = new OrderPlacedMessageCodec(JsonMapper.builder().build());
 
     @Test
@@ -78,6 +80,7 @@ class OrderPlacedListenerTest {
                 .expectNext(ProcessingOutcome.SOLD)
                 .verifyComplete();
         verify(client).deleteMessage(DeleteMessageRequest.builder().queueUrl(QUEUE_URL).receiptHandle("r-1").build());
+        assertThat(meterRegistry.get("ticketing.orders.outcomes").tag("result", "sold").counter().count()).isEqualTo(1.0);
     }
 
     @Test
@@ -202,7 +205,7 @@ class OrderPlacedListenerTest {
         SqsListenerProperties properties = new SqsListenerProperties("us-east-1", null, "order-placed",
                 "order-placed-dlq", Duration.ofSeconds(20), 10, maxConcurrency);
         return new OrderPlacedListener(client, properties, codec, processOrderUseCase,
-                new SqsErrorHandler(client, new SimpleMeterRegistry()), registry);
+                new SqsErrorHandler(client, new SimpleMeterRegistry()), registry, meterRegistry);
     }
 
     private Message message(OrderPlacedMessage placed, String receiptHandle) {

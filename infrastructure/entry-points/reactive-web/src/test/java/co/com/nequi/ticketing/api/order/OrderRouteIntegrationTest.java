@@ -22,6 +22,8 @@ import co.com.nequi.ticketing.model.shared.CustomerId;
 import co.com.nequi.ticketing.model.shared.EventId;
 import co.com.nequi.ticketing.usecase.getorder.GetOrderUseCase;
 import co.com.nequi.ticketing.usecase.placeorder.PlaceOrderUseCase;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -29,6 +31,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.webflux.test.autoconfigure.WebFluxTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -230,5 +233,10 @@ class OrderRouteIntegrationTest {
             BeanValidator.class, GlobalErrorWebExceptionHandler.class, ErrorResponseBuilder.class,
             ErrorStatusMapper.class, JsonMapperConfig.class})
     static class OrderRouteTestConfig {
+
+        @Bean
+        MeterRegistry meterRegistry() {
+            return new SimpleMeterRegistry();
+        }
     }
 }

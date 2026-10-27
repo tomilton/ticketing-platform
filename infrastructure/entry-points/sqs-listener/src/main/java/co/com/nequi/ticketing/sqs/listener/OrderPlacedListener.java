@@ -5,6 +5,7 @@ import co.com.nequi.ticketing.sqs.commons.OrderPlacedMessageCodec;
 import co.com.nequi.ticketing.sqs.listener.config.SqsListenerClientConfig;
 import co.com.nequi.ticketing.sqs.listener.config.SqsListenerProperties;
 import co.com.nequi.ticketing.usecase.processorder.ProcessOrderUseCase;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
@@ -30,6 +31,7 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -47,6 +49,8 @@ public class OrderPlacedListener implements ApplicationRunner {
     static final Duration RECEIVE_MAX_BACKOFF = Duration.ofSeconds(30);
     private static final String OBSERVATION = "ticketing.orders.process";
     private static final String ALL_ATTRIBUTES = "All";
+    static final String OUTCOMES_METRIC = "ticketing.orders.outcomes";
+    private static final String RESULT_TAG = "result";
 
     private final SqsAsyncClient client;
     private final SqsListenerProperties properties;
@@ -54,19 +58,21 @@ public class OrderPlacedListener implements ApplicationRunner {
     private final ProcessOrderUseCase processOrderUseCase;
     private final SqsErrorHandler errorHandler;
     private final ObservationRegistry observationRegistry;
+    private final MeterRegistry meterRegistry;
     private final Mono<Tuple2<String, String>> queueUrls;
     private Disposable subscription;
 
     public OrderPlacedListener(@Qualifier(SqsListenerClientConfig.LISTENER_CLIENT) SqsAsyncClient client,
                                SqsListenerProperties properties, OrderPlacedMessageCodec codec,
                                ProcessOrderUseCase processOrderUseCase, SqsErrorHandler errorHandler,
-                               ObservationRegistry observationRegistry) {
+                               ObservationRegistry observationRegistry, MeterRegistry meterRegistry) {
         this.client = client;
         this.properties = properties;
         this.codec = codec;
         this.processOrderUseCase = processOrderUseCase;
         this.errorHandler = errorHandler;
         this.observationRegistry = observationRegistry;
+        this.meterRegistry = meterRegistry;
         this.queueUrls = Mono.zip(queueUrl(properties.orderPlacedQueue()), queueUrl(properties.orderPlacedDlq()))
                 .cacheInvalidateIf(urls -> false);
     }
@@ -95,7 +101,8 @@ public class OrderPlacedListener implements ApplicationRunner {
                         .doBeforeRetry(signal -> log.error("SQS receive failed, queue={}, attempt={}",
                                 properties.orderPlacedQueue(), signal.totalRetries() + 1, signal.failure())))
                 .repeat()
-                .flatMap(this::handle, properties.maxConcurrency());
+                .flatMap(this::handle, properties.maxConcurrency())
+                .doOnNext(this::countOutcome);
     }
 
     private Flux<Message> receive(String queueUrl) {
@@ -123,6 +130,13 @@ public class OrderPlacedListener implements ApplicationRunner {
                     .onErrorResume(error -> errorHandler.handle(error, message, urls.getT1(), urls.getT2())
                             .then(Mono.empty()));
         });
+    }
+
+    private void countOutcome(ProcessingOutcome outcome) {
+        Optional.of(outcome)
+                .filter(counted -> counted != ProcessingOutcome.IGNORED)
+                .ifPresent(counted -> meterRegistry.counter(OUTCOMES_METRIC, RESULT_TAG,
+                        counted.name().toLowerCase(Locale.ROOT)).increment());
     }
 
     private Observation receiverObservation(Message message) {
