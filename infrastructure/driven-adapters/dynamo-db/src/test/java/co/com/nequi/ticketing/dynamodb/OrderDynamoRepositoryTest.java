@@ -9,6 +9,7 @@ import co.com.nequi.ticketing.dynamodb.support.OrderFixtures;
 import co.com.nequi.ticketing.dynamodb.transaction.AuditItemBuilder;
 import co.com.nequi.ticketing.dynamodb.transaction.ReservationTransactionBuilder;
 import co.com.nequi.ticketing.dynamodb.transaction.TransactionFailureTranslator;
+import co.com.nequi.ticketing.dynamodb.transaction.TransitionTransactionBuilder;
 import co.com.nequi.ticketing.model.enums.BusinessErrorMessage;
 import co.com.nequi.ticketing.model.event.Event;
 import co.com.nequi.ticketing.model.exception.BusinessException;
@@ -191,9 +192,11 @@ class OrderDynamoRepositoryTest {
 
     private OrderDynamoRepository repository(Integer conflictRetries) {
         DynamoDbProperties properties = OrderFixtures.properties(conflictRetries, Duration.ofSeconds(5));
+        AuditItemBuilder auditItemBuilder = new AuditItemBuilder(properties);
         ReservationTransactionBuilder builder = new ReservationTransactionBuilder(properties, orderMapper,
-                new IdempotencyEntityMapper(), new AuditItemBuilder(properties));
-        return new OrderDynamoRepository(client, properties, orderMapper, builder, new TransactionFailureTranslator());
+                new IdempotencyEntityMapper(), auditItemBuilder);
+        return new OrderDynamoRepository(client, properties, orderMapper, builder,
+                new TransitionTransactionBuilder(properties, auditItemBuilder), new TransactionFailureTranslator());
     }
 
     private static TransactionCanceledException cancellation(String... codes) {
