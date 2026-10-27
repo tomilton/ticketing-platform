@@ -2,6 +2,7 @@ package co.com.nequi.ticketing.api.availability;
 
 import co.com.nequi.ticketing.api.availability.mapper.AvailabilityMapManagement;
 import co.com.nequi.ticketing.api.availability.mapper.AvailabilityMapperImpl;
+import co.com.nequi.ticketing.api.config.AvailabilityBatchProperties;
 import co.com.nequi.ticketing.api.config.EventPaginationProperties;
 import co.com.nequi.ticketing.api.config.RouteProperties;
 import co.com.nequi.ticketing.api.event.EventHandler;
@@ -14,12 +15,16 @@ import co.com.nequi.ticketing.api.handle.exceptions.GlobalErrorWebExceptionHandl
 import co.com.nequi.ticketing.api.validation.BeanValidator;
 import co.com.nequi.ticketing.model.enums.BusinessErrorMessage;
 import co.com.nequi.ticketing.model.inventory.EventInventory;
+import co.com.nequi.ticketing.model.inventory.request.BatchAvailabilityQuery;
 import co.com.nequi.ticketing.model.shared.EventId;
 import co.com.nequi.ticketing.usecase.createevent.CreateEventUseCase;
 import co.com.nequi.ticketing.usecase.getavailability.GetAvailabilityUseCase;
+import co.com.nequi.ticketing.usecase.getbatchavailability.GetBatchAvailabilityUseCase;
 import co.com.nequi.ticketing.usecase.getevent.GetEventUseCase;
 import co.com.nequi.ticketing.usecase.listactiveevents.ListActiveEventsUseCase;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.webflux.test.autoconfigure.WebFluxTest;
@@ -28,11 +33,15 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -42,12 +51,17 @@ class AvailabilityRouteIntegrationTest {
 
     private static final String EVENTS = "/api/v1/events";
     private static final EventId FIRST_ID = new EventId(UUID.fromString("3f1c2a7e-1d2b-4c5d-9e8f-0a1b2c3d4e5f"));
+    private static final EventId SECOND_ID = new EventId(UUID.fromString("7b2d4c6e-8f0a-4b1c-9d2e-3f4a5b6c7d8e"));
+    private static final EventId MISSING_ID = new EventId(UUID.fromString("9d8e7f6a-5b4c-4d3e-8f2a-1b0c9d8e7f6a"));
 
     @Autowired
     private WebTestClient webTestClient;
 
     @MockitoBean
     private GetAvailabilityUseCase getAvailabilityUseCase;
+
+    @MockitoBean
+    private GetBatchAvailabilityUseCase getBatchAvailabilityUseCase;
 
     @MockitoBean
     private GetEventUseCase getEventUseCase;
@@ -94,6 +108,53 @@ class AvailabilityRouteIntegrationTest {
         verifyNoInteractions(getAvailabilityUseCase);
     }
 
+    @Test
+    void shouldPassRequestIdsAndKeepUseCaseOrderWhenBatchIsRequested() {
+        // Given
+        BatchAvailabilityQuery query = new BatchAvailabilityQuery(List.of(FIRST_ID, FIRST_ID, MISSING_ID, SECOND_ID));
+        when(getBatchAvailabilityUseCase.get(query)).thenReturn(Flux.just(
+                new EventInventory(FIRST_ID, 10, 10, 0, 0, 0), new EventInventory(SECOND_ID, 5, 4, 1, 0, 0)));
+        String ids = String.join(",", FIRST_ID.value().toString(), FIRST_ID.value().toString(),
+                MISSING_ID.value().toString(), SECOND_ID.value().toString());
+
+        // When / Then
+        webTestClient.get().uri(EVENTS + "/availability?ids=" + ids).exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.length()").isEqualTo(2)
+                .jsonPath("$.data[0].eventId").isEqualTo(FIRST_ID.value().toString())
+                .jsonPath("$.data[1].eventId").isEqualTo(SECOND_ID.value().toString());
+        verifyNoInteractions(getEventUseCase);
+    }
+
+    @Test
+    void shouldReturnEmptyListWhenNoRequestedEventExists() {
+        // Given
+        when(getBatchAvailabilityUseCase.get(any(BatchAvailabilityQuery.class))).thenReturn(Flux.empty());
+
+        // When / Then
+        webTestClient.get().uri(EVENTS + "/availability?ids=" + MISSING_ID.value()).exchange()
+                .expectStatus().isOk()
+                .expectBody().jsonPath("$.data.length()").isEqualTo(0);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"?ids=", "", "?ids=no-es-uuid"})
+    void shouldRejectNamingIdsWhenIdsAreMissingOrInvalid(String query) {
+        // When / Then
+        assertErrorNaming(webTestClient.get().uri(EVENTS + "/availability" + query).exchange(), "ids");
+        verifyNoInteractions(getBatchAvailabilityUseCase, getEventUseCase);
+    }
+
+    @Test
+    void shouldRejectNamingIdsWhenThereAreMoreThanOneHundredIds() {
+        // Given
+        String ids = String.join(",", Collections.nCopies(101, FIRST_ID.value().toString()));
+
+        // When / Then
+        assertErrorNaming(webTestClient.get().uri(EVENTS + "/availability?ids=" + ids).exchange(), "ids");
+    }
+
     private static void assertErrorNaming(WebTestClient.ResponseSpec response, String parameter) {
         response.expectStatus().isBadRequest()
                 .expectBody()
@@ -102,7 +163,8 @@ class AvailabilityRouteIntegrationTest {
     }
 
     @Configuration
-    @EnableConfigurationProperties({RouteProperties.class, EventPaginationProperties.class})
+    @EnableConfigurationProperties({RouteProperties.class, EventPaginationProperties.class,
+            AvailabilityBatchProperties.class})
     @Import({AvailabilityRouterRest.class, AvailabilityHandler.class, AvailabilityMapperImpl.class,
             AvailabilityMapManagement.class, EventRouterRest.class, EventHandler.class, EventMapperImpl.class,
             EventMapManagement.class, BeanValidator.class, GlobalErrorWebExceptionHandler.class,

@@ -23,6 +23,8 @@ public class AvailabilityRouterRest {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public RouterFunction<ServerResponse> availabilityRoutes(AvailabilityHandler handler, RouteProperties routes) {
         return SpringdocRouteBuilder.route()
+                .GET(routes.batchAvailabilityPath(), handler::getBatchAvailability,
+                        AvailabilityOpenApi::getBatchAvailability)
                 .GET(routes.eventAvailabilityPath(), handler::getAvailability, AvailabilityOpenApi::getAvailability)
                 .build();
     }
