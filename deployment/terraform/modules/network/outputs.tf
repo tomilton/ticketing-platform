@@ -14,6 +14,6 @@ output "private_subnet_ids" {
 }
 
 output "gateway_prefix_list_ids" {
-  description = "Prefix lists of the DynamoDB and S3 gateway endpoints, the egress destinations of the tasks."
-  value       = [for endpoint in aws_vpc_endpoint.gateway : endpoint.prefix_list_id]
+  description = "Prefix list of each gateway endpoint (dynamodb and s3), the egress destinations of the tasks."
+  value       = { for service, endpoint in aws_vpc_endpoint.gateway : service => endpoint.prefix_list_id }
 }

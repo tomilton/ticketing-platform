@@ -56,7 +56,7 @@ resource "aws_vpc_security_group_egress_rule" "to_interface_endpoints" {
 }
 
 resource "aws_vpc_security_group_egress_rule" "to_gateway_endpoints" {
-  for_each = toset(var.gateway_prefix_list_ids)
+  for_each = var.gateway_prefix_list_ids
 
   security_group_id = aws_security_group.task.id
   description       = "HTTPS to DynamoDB and S3 through their gateway endpoints"

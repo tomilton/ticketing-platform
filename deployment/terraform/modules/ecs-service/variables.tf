@@ -84,8 +84,8 @@ variable "subnet_ids" {
 }
 
 variable "gateway_prefix_list_ids" {
-  description = "Prefix lists of the DynamoDB and S3 gateway endpoints."
-  type        = list(string)
+  description = "Prefix list of each gateway endpoint, by service: dynamodb and s3."
+  type        = map(string)
 }
 
 variable "load_balancer" {

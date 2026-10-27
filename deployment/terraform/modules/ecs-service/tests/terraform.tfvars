@@ -14,7 +14,7 @@ max_capacity            = 6
 vpc_id                  = "vpc-test"
 vpc_cidr_block          = "10.20.0.0/16"
 subnet_ids              = ["subnet-a", "subnet-b", "subnet-c"]
-gateway_prefix_list_ids = ["pl-dynamodb", "pl-s3"]
+gateway_prefix_list_ids = { dynamodb = "pl-dynamodb", s3 = "pl-s3" }
 load_balancer = {
   security_group_id       = "sg-alb"
   target_group_arn        = "arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/api/1"

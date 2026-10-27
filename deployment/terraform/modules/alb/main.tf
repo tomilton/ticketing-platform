@@ -71,6 +71,7 @@ resource "aws_lb" "this" {
   # checkov:skip=CKV_AWS_91: the API logs every request with its traceId; ALB access logs would duplicate them
   # checkov:skip=CKV2_AWS_28: WAF protects CloudFront, the only public entry; this load balancer is internal
   # checkov:skip=CKV2_AWS_20: internal hop inside the private VPC; TLS ends at CloudFront and API Gateway
+  # checkov:skip=CKV_AWS_150: var.deletion_protection enables it in production, where the platform validates it; dev and qa are disposable
   name                       = "${var.name}-api"
   internal                   = true
   load_balancer_type         = "application"
