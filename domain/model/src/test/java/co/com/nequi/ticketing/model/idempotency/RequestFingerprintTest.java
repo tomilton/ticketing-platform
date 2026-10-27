@@ -1,6 +1,8 @@
 package co.com.nequi.ticketing.model.idempotency;
 
+import co.com.nequi.ticketing.model.order.ComplimentaryQuantity;
 import co.com.nequi.ticketing.model.order.Quantity;
+import co.com.nequi.ticketing.model.shared.CustomerId;
 import co.com.nequi.ticketing.model.shared.EventId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -27,6 +29,24 @@ class RequestFingerprintTest {
         // When / Then
         assertThat(RequestFingerprint.of(EVENT_ID, new Quantity(3)))
                 .isEqualTo(RequestFingerprint.of(EVENT_ID, new Quantity(3)));
+    }
+
+    @Test
+    void shouldReturnDifferentGrantFingerprintWhenCustomerIsDifferent() {
+        // When / Then
+        assertThat(RequestFingerprint.ofGrant(EVENT_ID, new CustomerId(UUID.randomUUID()), new ComplimentaryQuantity(3)))
+                .isNotEqualTo(RequestFingerprint.ofGrant(EVENT_ID, new CustomerId(UUID.randomUUID()),
+                        new ComplimentaryQuantity(3)));
+    }
+
+    @Test
+    void shouldReturnSameGrantFingerprintWhenContentIsTheSame() {
+        // Given
+        CustomerId customerId = new CustomerId(UUID.randomUUID());
+
+        // When / Then
+        assertThat(RequestFingerprint.ofGrant(EVENT_ID, customerId, new ComplimentaryQuantity(3)))
+                .isEqualTo(RequestFingerprint.ofGrant(EVENT_ID, customerId, new ComplimentaryQuantity(3)));
     }
 
     @Test

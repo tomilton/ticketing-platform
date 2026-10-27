@@ -13,7 +13,8 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Builds the write of one audit record of an order. A record is only ever created, never updated.
+ * Builds the write of one audit record of an order. A record is only ever created, never updated. The
+ * identifier of the actor is written only when the change has one.
  */
 @Component
 @RequiredArgsConstructor
@@ -39,6 +40,7 @@ public class AuditItemBuilder {
         item.put("reason", AttributeValue.fromS(change.reason().name()));
         item.put("actor", AttributeValue.fromS(change.actor().name()));
         item.put("at", AttributeValue.fromN(String.valueOf(change.at().toEpochMilli())));
+        Optional.ofNullable(change.actorId()).ifPresent(actorId -> item.put("actorId", AttributeValue.fromS(actorId)));
         return TransactWriteItem.builder()
                 .put(Put.builder()
                         .tableName(properties.orderAuditTable())
