@@ -40,6 +40,7 @@ adapters:
     pending-publication-index: ${DYNAMODB_PENDING_PUBLICATION_INDEX}
     transaction-conflict-retries: ${DYNAMODB_TRANSACTION_CONFLICT_RETRIES}
     reserve-timeout: ${DYNAMODB_RESERVE_TIMEOUT}
+    scheduler-locks-table: ${DYNAMODB_SCHEDULER_LOCKS_TABLE}
   sqs:
     sender:
       region: ${AWS_REGION}

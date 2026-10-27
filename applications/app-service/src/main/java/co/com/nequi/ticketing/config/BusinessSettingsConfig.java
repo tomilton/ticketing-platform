@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
+import java.util.UUID;
 
 /**
  * Business parameters of the domain, read from the configuration and validated by the domain
@@ -35,6 +36,16 @@ public class BusinessSettingsConfig {
     public OrderSettings orderSettings(OrderProperties properties) {
         return new OrderSettings(properties.maxTicketsPerOrder(), properties.maxTicketsPerCustomer(),
                 properties.reservationTtl(), properties.republishGrace(), properties.republishConcurrency());
+    }
+
+    /**
+     * Identity of this replica, generated when it starts; it owns the locks of the periodic tasks.
+     *
+     * @return a new random identifier
+     */
+    @Bean
+    public UUID instanceId() {
+        return UUID.randomUUID();
     }
 
     @Bean

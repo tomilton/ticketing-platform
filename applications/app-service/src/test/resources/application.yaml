@@ -38,6 +38,7 @@ adapters:
     pending-publication-index: pending-publication
     transaction-conflict-retries: 10
     reserve-timeout: 5s
+    scheduler-locks-table: scheduler_locks
   sqs:
     sender:
       region: us-east-1

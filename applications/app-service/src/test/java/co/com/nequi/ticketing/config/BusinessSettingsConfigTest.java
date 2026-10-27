@@ -10,6 +10,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import java.time.Duration;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -50,6 +51,14 @@ class BusinessSettingsConfigTest {
                     assertThat(context.getBean(IdempotencySettings.class))
                             .isEqualTo(new IdempotencySettings(Duration.ofHours(24), Duration.ofSeconds(10)));
                 });
+    }
+
+    @Test
+    void shouldExposeDistinctInstanceIdWhenEachContextStarts() {
+        // When / Then
+        contextRunner.withPropertyValues("inventory.shard-count=1")
+                .run(first -> contextRunner.withPropertyValues("inventory.shard-count=1")
+                        .run(second -> assertThat(first.getBean(UUID.class)).isNotEqualTo(second.getBean(UUID.class))));
     }
 
     @ParameterizedTest
