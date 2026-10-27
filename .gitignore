@@ -334,3 +334,12 @@ build-cache
 
 # Local environment
 deployment/.env
+
+### Terraform ###
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+deployment/terraform/modules/**/.terraform.lock.hcl
