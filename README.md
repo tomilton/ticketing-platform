@@ -18,9 +18,10 @@ El diseño completo, con sus alternativas y diagramas, está en el
 5. [API y ejemplos](#api-y-ejemplos)
 6. [Colección de Postman](#colección-de-postman)
 7. [Pruebas y calidad](#pruebas-y-calidad)
-8. [Decisiones clave](#decisiones-clave)
-9. [Limitaciones conocidas y qué cambiaría en producción](#limitaciones-conocidas-y-qué-cambiaría-en-producción)
-10. [Hoja de ruta](#hoja-de-ruta)
+8. [Despliegue en AWS](#despliegue-en-aws)
+9. [Decisiones clave](#decisiones-clave)
+10. [Limitaciones conocidas y qué cambiaría en producción](#limitaciones-conocidas-y-qué-cambiaría-en-producción)
+11. [Hoja de ruta](#hoja-de-ruta)
 
 ## Arquitectura
 
@@ -308,6 +309,25 @@ El detalle del análisis está en [CONTRIBUTING.md](CONTRIBUTING.md).
 Las dependencias de Gradle están bloqueadas en los `gradle.lockfile` de cada módulo; tras cambiar una
 versión se regeneran con `./gradlew resolveAndLockAll --write-locks`.
 
+En GitHub Actions, `.github/workflows/build.yml` corre el mismo `build` en cada PR y en cada push a
+`main`, y `.github/workflows/terraform.yml` valida la infraestructura cuando cambia.
+
+## Despliegue en AWS
+
+[`deployment/terraform/`](deployment/terraform/README.md) describe en Terraform la arquitectura objetivo
+del RFC (sección 9) para los ambientes `dev`, `qa` y `prod`:
+
+- **Red y datos:** VPC en 3 zonas sin NAT, con VPC endpoints para DynamoDB, SQS, ECR, CloudWatch Logs
+  y STS. Las 7 tablas son on-demand, con PITR y cifrado KMS. La cola tiene DLQ.
+- **Cómputo:** API y worker como servicios ECS Fargate separados con la misma imagen; el worker corre
+  en Spot sobre una base On-Demand.
+- **Borde:** CloudFront con WAF delante de API Gateway, y la ruta SSE va directo al ALB interno.
+- **Operación:** alarmas, dashboard y presupuesto por ambiente.
+
+Todo se valida sin una cuenta de AWS, con `fmt`, `validate`, tflint, checkov y `terraform test` con
+proveedores simulados. El README de esa carpeta trae los prerrequisitos (bucket de estado, ECR e
+imagen) y los comandos para desplegar.
+
 ## Decisiones clave
 
 - **Cero sobreventa por diseño.** El inventario solo cambia con una transacción condicional de
@@ -365,11 +385,12 @@ versión se regeneran con `./gradlew resolveAndLockAll --write-locks`.
 | 003 | Barrido de reservas vencidas con lock distribuido y entradas de cortesía | Entregada |
 | 003b | Modos de demostración del simulador (lento, aleatorio, caído) | Entregada |
 | 004 | Seguridad y resiliencia: JWT, rol de administrador, rate limiting, webhook firmado, circuit breaker | Siguiente |
-| 005 | Infraestructura en AWS con Terraform | Siguiente |
+| 005 | Infraestructura en AWS con Terraform | Entregada |
 
 ## Documentación
 
 - Diseño funcional y técnico: [docs/rfc/RFC-001-ticketing.md](docs/rfc/RFC-001-ticketing.md).
+- Infraestructura en AWS: [deployment/terraform/README.md](deployment/terraform/README.md).
 - Primeros pasos: [GETTINGSTARTED.md](GETTINGSTARTED.md).
 - Cambios por versión: [CHANGELOG.md](CHANGELOG.md).
 - Cómo contribuir: [CONTRIBUTING.md](CONTRIBUTING.md) y [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).

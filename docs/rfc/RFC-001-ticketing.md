@@ -608,9 +608,11 @@ En producción, los dos servicios corren en ECS Fargate en subredes privadas, de
 | Cómputo | ECS Fargate | EKS: más operación para dos servicios. Lambda: arranque en frío de JVM y conexiones SSE largas no encajan |
 | Base de datos | DynamoDB on-demand | Aurora: escala de escritura vertical y bloqueos de filas en picos. Provisioned + autoscaling reacciona en minutos, tarde para un lanzamiento; se puede pre-calentar si el evento es conocido |
 | Mensajería | SQS Standard + DLQ | Kafka/MSK: sobredimensionado para colas de trabajo punto a punto |
-| Barrido | EventBridge Scheduler → cola `reservation-sweep` | `@Scheduled` reactivo + lock con escritura condicional (se usa en local): en AWS se evita mantener el lock |
+| Barrido | EventBridge Scheduler → cola `reservation-sweep` (evolución) | `@Scheduled` reactivo + lock con escritura condicional (se usa en local): en AWS se evita mantener el lock |
 | Borde | CloudFront + WAF + API Gateway HTTP API con JWT authorizer | ALB público: sin autorización JWT ni *throttling* gestionados |
 | Salida a AWS | VPC endpoints | NAT Gateway: costo por GB y superficie de salida a internet |
+
+**Barrido desplegado.** La feature 005 despliega el barrido tal como está implementado: `@Scheduled` en el worker con el lock de escritura condicional en DynamoDB, que funciona igual en AWS y garantiza una sola réplica por ciclo. EventBridge Scheduler con la cola `reservation-sweep` queda como evolución: quita el lock y el reloj del worker sin cambiar el caso de uso.
 
 **Ruta especial para el stream SSE.** API Gateway HTTP API corta las integraciones a los 30 s y no está pensado para conexiones largas, así que la ruta `/availability/stream` no pasa por él. CloudFront la envía directo al ALB interno como *VPC origin*. El ALB tiene el tiempo de inactividad ampliado (hasta 4 000 s) y WAF sigue protegiendo la ruta en CloudFront. La señal de vida del stream, cada 15 s y configurable, mantiene la conexión abierta por debajo de cualquier límite de inactividad intermedio. El token del cliente se valida en la aplicación para esa ruta, porque no pasa por el autorizador de API Gateway.
 
@@ -622,16 +624,19 @@ deployment/terraform/
 │   ├── network/        # VPC 3 AZ, subredes privadas, endpoints, security groups
 │   ├── data/           # tablas DynamoDB, GSIs, PITR, KMS
 │   ├── messaging/      # colas, DLQs, redrive, políticas
+│   ├── ecs-cluster/    # cluster Fargate con Container Insights y Spot
+│   ├── alb/            # ALB interno y security groups del VPC Link
 │   ├── ecs-service/    # task definition, task role, autoscaling (reutilizado por api y worker)
 │   ├── edge/           # API Gateway, VPC Link, WAF, CloudFront
-│   └── observability/  # dashboards, alarmas, log groups con retención
+│   ├── observability/  # dashboards, alarmas, SNS y presupuesto
+│   └── platform/       # composición de un ambiente con todos los módulos
 └── envs/{dev,qa,prod}/ # main.tf + terraform.tfvars + backend S3 (cifrado, versionado, lock)
 ```
 
 - **Aislamiento de ambientes:** cuentas separadas bajo AWS Organizations con SCPs. El *blast radius* de un error en dev no alcanza prod.
 - **Red:** solo el ALB interno recibe tráfico, y solo desde el VPC Link. Las tareas aceptan tráfico únicamente del security group del ALB. Políticas de endpoint restringen a las tablas y colas propias.
 - **Escalabilidad:** la API escala por CPU y peticiones por destino; el worker por `ApproximateNumberOfMessagesVisible` dividido entre tareas. Mínimo 2 tareas en 2 AZ en prod.
-- **Pipeline:** `terraform fmt`, `validate`, `tflint` y `checkov` en cada PR; `plan` como comentario; `apply` con aprobación en prod.
+- **Pipeline:** `terraform fmt`, `validate`, `tflint` y `checkov` en cada PR; `plan` como comentario; `apply` con aprobación en prod. La feature 005 entrega en GitHub Actions `fmt`, `validate`, `tflint`, `checkov` y `terraform test` con proveedores simulados; `plan` y `apply` necesitan la cuenta de AWS.
 - **Gobierno:** etiquetas obligatorias (`app`, `env`, `owner`, `cost-center`), CloudTrail, AWS Config y GuardDuty a nivel de organización.
 
 **Observabilidad**
@@ -747,9 +752,9 @@ El repositorio se construye por features con Spec-Driven Development. Cada una s
 | 003 | Barrido de reservas vencidas con lock distribuido y entradas de cortesía | Entregada |
 | 003b | Modos de demostración del simulador (lento, aleatorio, caído) | Entregada |
 | 004 | Seguridad y resiliencia: JWT, rol de administrador, rate limiting, webhook firmado, circuit breaker | Siguiente |
-| 005 | Infraestructura en AWS con Terraform | Siguiente |
+| 005 | Infraestructura en AWS con Terraform | Entregada |
 
-Las secciones 8 y 9 describen el diseño completo de las features 004 y 005, que se incorporan después de la primera entrega.
+La sección 8 describe el diseño completo de la feature 004, que se incorpora después. La sección 9 corresponde a la feature 005, entregada como código de Terraform validado sin cuenta de AWS: formato, validación, linters, análisis de seguridad y pruebas nativas.
 
 ### Fuentes
 

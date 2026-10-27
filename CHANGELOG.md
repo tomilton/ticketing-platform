@@ -5,6 +5,29 @@ Todos los cambios relevantes del proyecto se registran en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el proyecto usa
 [versionamiento semántico](https://semver.org/lang/es/).
 
+## [1.3.0] - Unreleased
+
+### Added
+
+- Infraestructura en AWS con Terraform (`deployment/terraform/`): módulos `network`, `data`,
+  `messaging`, `ecs-cluster`, `alb`, `ecs-service`, `edge`, `observability` y `platform`, y los
+  ambientes `dev`, `qa` y `prod` con estado remoto en S3 (cifrado, versionado y con lock).
+  - VPC en 3 zonas sin NAT, con 7 VPC endpoints.
+  - Las 7 tablas con sus índices, TTL, PITR y KMS, y la cola con DLQ (`maxReceiveCount` 5).
+  - API y worker en ECS Fargate con roles de mínimo privilegio y escalado propio (worker en Spot).
+  - CloudFront con WAF, API Gateway con VPC Link y la ruta SSE directa al ALB interno.
+  - Alarmas, dashboard y presupuesto por ambiente.
+  - Se valida sin cuenta de AWS con `fmt`, `validate`, tflint, checkov y `terraform test`.
+- CI en GitHub Actions: `build.yml` (build de Gradle con Testcontainers y reporte de cobertura) y
+  `terraform.yml` (validación completa de la infraestructura).
+
+### Changed
+
+- `verifyEnvironmentParity` compara también las variables de `application.yaml` con las de la task
+  definition de Terraform, en las dos direcciones.
+- RFC §9: el barrido se despliega en el worker con su lock; EventBridge Scheduler queda como
+  evolución.
+
 ## [1.2.1] - Unreleased
 
 ### Added
