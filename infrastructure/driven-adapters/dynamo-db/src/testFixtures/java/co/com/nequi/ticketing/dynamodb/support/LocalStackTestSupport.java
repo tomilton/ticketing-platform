@@ -9,6 +9,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
+import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -16,18 +17,30 @@ import java.util.Map;
 
 /**
  * Shared LocalStack container for the integration tests. It runs the same init scripts as the
- * local environment, so the tables are defined in a single place.
+ * local environment, so the tables and queues are defined in a single place.
  */
 public final class LocalStackTestSupport {
 
     public static final String EVENTS_TABLE = "events";
     public static final String INVENTORY_TABLE = "inventory";
     public static final String EVENTS_BY_STATUS_DATE_INDEX = "by-status-date";
+    public static final String ORDERS_TABLE = "orders";
+    public static final String ORDER_AUDIT_TABLE = "order_audit";
+    public static final String IDEMPOTENCY_TABLE = "idempotency";
+    public static final String CUSTOMER_LIMITS_TABLE = "customer_event_limits";
+    public static final String EXPIRING_RESERVATIONS_INDEX = "expiring-reservations";
+    public static final String PENDING_PUBLICATION_INDEX = "pending-publication";
+    public static final String ORDER_PLACED_QUEUE = "order-placed";
+    public static final String ORDER_PLACED_DLQ = "order-placed-dlq";
+    public static final String VISIBILITY_TIMEOUT_SECONDS = "5";
+    public static final String MAX_RECEIVE_COUNT = "5";
 
     private static final String IMAGE = "localstack/localstack:4.14.0"
             + "@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a";
-    private static final String INIT_SCRIPT = "deployment/localstack/init/ready.d/01-dynamodb.sh";
-    private static final String CONTAINER_INIT_SCRIPT = "/etc/localstack/init/ready.d/01-dynamodb.sh";
+    private static final String INIT_DIRECTORY = "deployment/localstack/init/ready.d/";
+    private static final String CONTAINER_INIT_DIRECTORY = "/etc/localstack/init/ready.d/";
+    private static final String DYNAMODB_SCRIPT = "01-dynamodb.sh";
+    private static final String SQS_SCRIPT = "02-sqs.sh";
     private static final String PROJECT_ROOT_PROPERTY = "project.root";
     private static final String ACCESS_KEY_PROPERTY = "aws.accessKeyId";
     private static final String SECRET_KEY_PROPERTY = "aws.secretAccessKey";
@@ -36,15 +49,24 @@ public final class LocalStackTestSupport {
 
     private static final LocalStackContainer CONTAINER = new LocalStackContainer(DockerImageName.parse(IMAGE)
             .asCompatibleSubstituteFor("localstack/localstack"))
-            .withServices("dynamodb")
-            .withEnv(Map.of(
-                    "DYNAMODB_EVENTS_TABLE", EVENTS_TABLE,
-                    "DYNAMODB_INVENTORY_TABLE", INVENTORY_TABLE,
-                    "DYNAMODB_EVENTS_BY_STATUS_DATE_INDEX", EVENTS_BY_STATUS_DATE_INDEX))
-            .withCopyFileToContainer(MountableFile.forHostPath(
-                    Path.of(System.getProperty(PROJECT_ROOT_PROPERTY), INIT_SCRIPT), EXECUTABLE_MODE),
-                    CONTAINER_INIT_SCRIPT)
-            .waitingFor(Wait.forLogMessage(".*\\[init\\] DynamoDB table " + INVENTORY_TABLE + " .*\\n", 1)
+            .withServices("dynamodb", "sqs")
+            .withEnv(Map.ofEntries(
+                    Map.entry("DYNAMODB_EVENTS_TABLE", EVENTS_TABLE),
+                    Map.entry("DYNAMODB_INVENTORY_TABLE", INVENTORY_TABLE),
+                    Map.entry("DYNAMODB_EVENTS_BY_STATUS_DATE_INDEX", EVENTS_BY_STATUS_DATE_INDEX),
+                    Map.entry("DYNAMODB_ORDERS_TABLE", ORDERS_TABLE),
+                    Map.entry("DYNAMODB_ORDER_AUDIT_TABLE", ORDER_AUDIT_TABLE),
+                    Map.entry("DYNAMODB_IDEMPOTENCY_TABLE", IDEMPOTENCY_TABLE),
+                    Map.entry("DYNAMODB_CUSTOMER_LIMITS_TABLE", CUSTOMER_LIMITS_TABLE),
+                    Map.entry("DYNAMODB_EXPIRING_RESERVATIONS_INDEX", EXPIRING_RESERVATIONS_INDEX),
+                    Map.entry("DYNAMODB_PENDING_PUBLICATION_INDEX", PENDING_PUBLICATION_INDEX),
+                    Map.entry("SQS_ORDER_PLACED_QUEUE", ORDER_PLACED_QUEUE),
+                    Map.entry("SQS_ORDER_PLACED_DLQ", ORDER_PLACED_DLQ),
+                    Map.entry("SQS_VISIBILITY_TIMEOUT_SECONDS", VISIBILITY_TIMEOUT_SECONDS),
+                    Map.entry("SQS_MAX_RECEIVE_COUNT", MAX_RECEIVE_COUNT)))
+            .withCopyFileToContainer(script(DYNAMODB_SCRIPT), CONTAINER_INIT_DIRECTORY + DYNAMODB_SCRIPT)
+            .withCopyFileToContainer(script(SQS_SCRIPT), CONTAINER_INIT_DIRECTORY + SQS_SCRIPT)
+            .waitingFor(Wait.forLogMessage(".*\\[init\\] SQS queue " + ORDER_PLACED_QUEUE + " .*\\n", 1)
                     .withStartupTimeout(STARTUP_TIMEOUT));
 
     private LocalStackTestSupport() {
@@ -67,8 +89,16 @@ public final class LocalStackTestSupport {
         return DynamoDbAsyncClient.builder()
                 .endpointOverride(CONTAINER.getEndpoint())
                 .region(Region.of(CONTAINER.getRegion()))
-                .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(CONTAINER.getAccessKey(), CONTAINER.getSecretKey())))
+                .credentialsProvider(credentials())
+                .build();
+    }
+
+    public static SqsAsyncClient sqsAsyncClient() {
+        start();
+        return SqsAsyncClient.builder()
+                .endpointOverride(CONTAINER.getEndpoint())
+                .region(Region.of(CONTAINER.getRegion()))
+                .credentialsProvider(credentials())
                 .build();
     }
 
@@ -76,9 +106,8 @@ public final class LocalStackTestSupport {
         start();
         return new DynamoDbProperties(CONTAINER.getRegion(), CONTAINER.getEndpoint().toString(), EVENTS_TABLE,
                 INVENTORY_TABLE, EVENTS_BY_STATUS_DATE_INDEX, Duration.ofSeconds(5), Duration.ofSeconds(2), 4,
-                Duration.ofSeconds(2),
-                "orders", "order_audit", "idempotency", "customer_event_limits", "expiring-reservations",
-                "pending-publication", 10, Duration.ofSeconds(5));
+                Duration.ofSeconds(2), ORDERS_TABLE, ORDER_AUDIT_TABLE, IDEMPOTENCY_TABLE, CUSTOMER_LIMITS_TABLE,
+                EXPIRING_RESERVATIONS_INDEX, PENDING_PUBLICATION_INDEX, 10, Duration.ofSeconds(5));
     }
 
     /**
@@ -88,11 +117,27 @@ public final class LocalStackTestSupport {
      */
     public static Map<String, String> springProperties() {
         start();
-        return Map.of(
-                "adapters.dynamodb.region", CONTAINER.getRegion(),
-                "adapters.dynamodb.endpoint", CONTAINER.getEndpoint().toString(),
-                "adapters.dynamodb.events-table", EVENTS_TABLE,
-                "adapters.dynamodb.inventory-table", INVENTORY_TABLE,
-                "adapters.dynamodb.events-by-status-date-index", EVENTS_BY_STATUS_DATE_INDEX);
+        String region = CONTAINER.getRegion();
+        String endpoint = CONTAINER.getEndpoint().toString();
+        return Map.ofEntries(
+                Map.entry("adapters.dynamodb.region", region),
+                Map.entry("adapters.dynamodb.endpoint", endpoint),
+                Map.entry("adapters.dynamodb.events-table", EVENTS_TABLE),
+                Map.entry("adapters.dynamodb.inventory-table", INVENTORY_TABLE),
+                Map.entry("adapters.dynamodb.events-by-status-date-index", EVENTS_BY_STATUS_DATE_INDEX),
+                Map.entry("adapters.sqs.sender.region", region),
+                Map.entry("adapters.sqs.sender.endpoint", endpoint),
+                Map.entry("adapters.sqs.listener.region", region),
+                Map.entry("adapters.sqs.listener.endpoint", endpoint));
+    }
+
+    private static StaticCredentialsProvider credentials() {
+        return StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(CONTAINER.getAccessKey(), CONTAINER.getSecretKey()));
+    }
+
+    private static MountableFile script(String name) {
+        return MountableFile.forHostPath(Path.of(System.getProperty(PROJECT_ROOT_PROPERTY), INIT_DIRECTORY + name),
+                EXECUTABLE_MODE);
     }
 }

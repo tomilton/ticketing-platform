@@ -1,5 +1,9 @@
 apply plugin: 'java-test-fixtures'
 
+configurations {
+    testFixturesImplementation.extendsFrom(implementation)
+}
+
 dependencies {
     implementation project(':commons')
     implementation 'software.amazon.awssdk:dynamodb-enhanced'
@@ -18,7 +22,8 @@ dependencies {
     testFixturesImplementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
     testFixturesImplementation 'org.testcontainers:testcontainers-localstack'
     testFixturesImplementation 'software.amazon.awssdk:dynamodb'
-    testFixturesImplementation 'software.amazon.awssdk:sqs'
+    testFixturesApi 'software.amazon.awssdk:sqs'
+    testFixturesImplementation 'tools.jackson.core:jackson-databind'
     testFixturesImplementation 'software.amazon.awssdk:netty-nio-client'
     testImplementation "io.projectreactor.tools:blockhound:${blockhoundVersion}"
     testImplementation "io.projectreactor.tools:blockhound-junit-platform:${blockhoundVersion}"
