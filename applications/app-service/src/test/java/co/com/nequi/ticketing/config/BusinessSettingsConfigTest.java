@@ -1,7 +1,9 @@
 package co.com.nequi.ticketing.config;
 
 import co.com.nequi.ticketing.model.config.AvailabilityWatchSettings;
+import co.com.nequi.ticketing.model.config.IdempotencySettings;
 import co.com.nequi.ticketing.model.config.InventorySettings;
+import co.com.nequi.ticketing.model.config.OrderSettings;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -36,5 +38,26 @@ class BusinessSettingsConfigTest {
                     assertThat(context.getBean(AvailabilityWatchSettings.class))
                             .isEqualTo(new AvailabilityWatchSettings(Duration.ofSeconds(1)));
                 });
+    }
+
+    @Test
+    void shouldExposeOrderAndIdempotencySettingsWhenValuesAreValid() {
+        // When / Then
+        contextRunner.withPropertyValues("inventory.shard-count=1")
+                .run(context -> {
+                    assertThat(context.getBean(OrderSettings.class)).isEqualTo(new OrderSettings(6, 6,
+                            Duration.ofMinutes(10), Duration.ofSeconds(5), 4));
+                    assertThat(context.getBean(IdempotencySettings.class))
+                            .isEqualTo(new IdempotencySettings(Duration.ofHours(24), Duration.ofSeconds(10)));
+                });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"orders.max-tickets-per-order=7", "orders.max-tickets-per-customer=5",
+            "orders.republish-concurrency=0", "idempotency.lease=24h"})
+    void shouldNotStartWhenOrderOrIdempotencySettingIsInvalid(String invalid) {
+        // When / Then
+        contextRunner.withPropertyValues("inventory.shard-count=1", invalid)
+                .run(context -> assertThat(context).hasFailed());
     }
 }
