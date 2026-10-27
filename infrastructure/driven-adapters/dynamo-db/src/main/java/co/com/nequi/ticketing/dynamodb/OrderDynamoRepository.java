@@ -3,6 +3,7 @@ package co.com.nequi.ticketing.dynamodb;
 import co.com.nequi.ticketing.commons.exception.TechnicalException;
 import co.com.nequi.ticketing.dynamodb.config.DynamoDbProperties;
 import co.com.nequi.ticketing.dynamodb.mapper.OrderEntityMapper;
+import co.com.nequi.ticketing.dynamodb.transaction.ComplimentaryTransactionBuilder;
 import co.com.nequi.ticketing.dynamodb.transaction.ReservationTransactionBuilder;
 import co.com.nequi.ticketing.dynamodb.transaction.ShardSoldOutException;
 import co.com.nequi.ticketing.dynamodb.transaction.TransactionConflictException;
@@ -55,6 +56,7 @@ public class OrderDynamoRepository implements OrderRepository {
     private static final String MARK_PUBLISHED_UPDATE = "REMOVE publishBucket SET publishedAt = :nowMillis";
     private static final String ORDER_EXISTS_CONDITION = "attribute_exists(orderId)";
     private static final String PENDING_CONDITION = "publishBucket = :bucket AND createdAt < :before";
+    private static final String EXPIRED_CONDITION = "activeBucket = :bucket AND expiresAt <= :nowMillis";
 
     private final DynamoDbAsyncClient client;
     private final DynamoDbProperties properties;
@@ -62,6 +64,7 @@ public class OrderDynamoRepository implements OrderRepository {
     private final ReservationTransactionBuilder reservationBuilder;
     private final TransitionTransactionBuilder transitionBuilder;
     private final TransactionFailureTranslator failureTranslator;
+    private final ComplimentaryTransactionBuilder complimentaryBuilder;
 
     @Override
     public Mono<Order> reserve(Order order, Event event, ReservationContext context, Instant now) {
@@ -144,6 +147,53 @@ public class OrderDynamoRepository implements OrderRepository {
                 })
                 .map(item -> new OrderId(UUID.fromString(item.get(ORDER_ID).s())))
                 .onErrorMap(this::toTechnicalException);
+    }
+
+    @Override
+    public Mono<Order> grantComplimentary(Order order, Event event, Instant now) {
+        int shardCount = event.getShardCount();
+        return Flux.range(0, shardCount)
+                .map(offset -> order.toBuilder().shardId((order.getShardId() + offset) % shardCount).build())
+                .concatMap(candidate -> grantOnShard(candidate, event, now)
+                        .onErrorResume(ShardSoldOutException.class, soldOut -> Mono.empty()))
+                .next()
+                .switchIfEmpty(Mono.defer(() -> Mono.error(TICKETS_SOLD_OUT.build())))
+                .timeout(properties.reserveTimeout())
+                .onErrorMap(this::toTechnicalException);
+    }
+
+    @Override
+    public Flux<OrderId> findExpired(Instant now, Integer limit) {
+        return Flux.range(0, ReservationTransactionBuilder.BUCKETS)
+                .map(bucket -> ReservationTransactionBuilder.ACTIVE_BUCKET_PREFIX + bucket)
+                .flatMap(bucket -> {
+                    log.debug("DynamoDB Query, table={}, index={}, bucket={}", properties.ordersTable(),
+                            properties.expiringReservationsIndex(), bucket);
+                    return Flux.from(client.queryPaginator(QueryRequest.builder()
+                            .tableName(properties.ordersTable())
+                            .indexName(properties.expiringReservationsIndex())
+                            .keyConditionExpression(EXPIRED_CONDITION)
+                            .expressionAttributeValues(Map.of(
+                                    ":bucket", AttributeValue.fromS(bucket),
+                                    ":nowMillis", AttributeValue.fromN(String.valueOf(now.toEpochMilli()))))
+                            .limit(limit)
+                            .build()).items());
+                })
+                .take(limit)
+                .map(item -> new OrderId(UUID.fromString(item.get(ORDER_ID).s())))
+                .onErrorMap(this::toTechnicalException);
+    }
+
+    private Mono<Order> grantOnShard(Order order, Event event, Instant now) {
+        return Mono.fromFuture(() -> {
+                    log.debug("DynamoDB TransactWriteItems, table={}, orderId={}, eventId={}, shardId={}, "
+                                    + "operation=grantComplimentary", properties.ordersTable(), order.getOrderId().value(),
+                            event.getEventId().value(), order.getShardId());
+                    return client.transactWriteItems(complimentaryBuilder.build(order, event, now));
+                })
+                .thenReturn(order)
+                .onErrorMap(TransactionCanceledException.class, failureTranslator::translateGrant)
+                .retryWhen(conflictRetry());
     }
 
     private Mono<Order> reserveOnShard(Order order, Event event, ReservationContext context, Instant now) {

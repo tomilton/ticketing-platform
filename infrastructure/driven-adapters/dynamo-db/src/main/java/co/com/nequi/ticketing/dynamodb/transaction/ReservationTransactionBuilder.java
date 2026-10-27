@@ -79,7 +79,7 @@ public class ReservationTransactionBuilder {
         String quantity = String.valueOf(order.getQuantity());
         return TransactWriteItemsRequest.builder()
                 .transactItems(List.of(
-                        checkEventOnSale(event, now),
+                        checkEventOnSale(properties.eventsTable(), event, now),
                         takeTickets(order, quantity),
                         holdTicketsOfCustomer(order, event, context, quantity),
                         createOrder(order),
@@ -109,10 +109,18 @@ public class ReservationTransactionBuilder {
                 "shardId", AttributeValue.fromN(String.valueOf(order.getShardId())));
     }
 
-    private TransactWriteItem checkEventOnSale(Event event, Instant now) {
+    /**
+     * Check that the event is active and has not started, shared by the writes that take tickets.
+     *
+     * @param eventsTable the table of events
+     * @param event       the event
+     * @param now         the current instant
+     * @return the condition check item
+     */
+    static TransactWriteItem checkEventOnSale(String eventsTable, Event event, Instant now) {
         return TransactWriteItem.builder()
                 .conditionCheck(ConditionCheck.builder()
-                        .tableName(properties.eventsTable())
+                        .tableName(eventsTable)
                         .key(Map.of("eventId", AttributeValue.fromS(event.getEventId().value().toString())))
                         .conditionExpression(EVENT_ON_SALE_CONDITION)
                         .expressionAttributeNames(Map.of("#status", "status", "#date", "date"))
