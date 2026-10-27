@@ -1,0 +1,37 @@
+
+dependencies {
+	implementation 'software.amazon.awssdk:sts'
+	implementation 'org.springframework.boot:spring-boot-micrometer-tracing-opentelemetry'
+	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+	testImplementation(testFixtures(project(':dynamo-db')))
+	testImplementation 'org.springframework.boot:spring-boot-starter-webflux-test'
+}
+
+tasks.named('test') {
+	useJUnitPlatform {
+		excludeTags 'performance'
+	}
+	systemProperty 'project.root', rootProject.projectDir.absolutePath
+}
+
+tasks.register('performanceTest', Test) {
+	group = 'verification'
+	description = 'Runs the latency tests of SC-001 against LocalStack'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'performance'
+	}
+	systemProperty 'project.root', rootProject.projectDir.absolutePath
+	testLogging {
+		showStandardStreams = true
+	}
+}
+
+tasks.named('check') {
+	dependsOn ':verifyEnvironmentParity'
+}
+
+pitest {
+	excludedTestClasses = ['co.com.nequi.ticketing.observability.*', 'co.com.nequi.ticketing.performance.*']
+}

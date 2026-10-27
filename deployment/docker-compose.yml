@@ -1,0 +1,40 @@
+services:
+  localstack:
+    image: localstack/localstack:4.14.0@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a
+    ports:
+      - "4566:4566"
+    env_file: .env
+    environment:
+      SERVICES: dynamodb,sqs,secretsmanager
+    volumes:
+      - ./localstack/init/ready.d:/etc/localstack/init/ready.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf localhost:4566/_localstack/init/ready | grep -q '\"completed\": true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  ticketing-api:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
+    env_file: .env
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      APP_ROLE: api
+    depends_on:
+      localstack:
+        condition: service_healthy
+
+  sonarqube:
+    image: sonarqube:26.10.0.133078-community
+    profiles: ["quality"]
+    ports:
+      - "${SONAR_PORT}:9000"
+    volumes:
+      - sonarqube-data:/opt/sonarqube/data
+
+volumes:
+  sonarqube-data:

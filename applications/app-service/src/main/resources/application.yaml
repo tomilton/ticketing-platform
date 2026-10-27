@@ -1,0 +1,55 @@
+server:
+  port: ${APP_PORT}
+spring:
+  application:
+    name: ${APP_NAME}
+  reactor:
+    context-propagation: ${REACTOR_CONTEXT_PROPAGATION}
+logging:
+  structured:
+    format:
+      console: ${LOG_STRUCTURED_FORMAT}
+app:
+  role: ${APP_ROLE}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+routes:
+  base-path: ${ROUTES_BASE_PATH}
+  events: ${ROUTES_EVENTS}
+  event-by-id: ${ROUTES_EVENT_BY_ID}
+  event-availability: ${ROUTES_EVENT_AVAILABILITY}
+  batch-availability: ${ROUTES_BATCH_AVAILABILITY}
+  availability-stream: ${ROUTES_AVAILABILITY_STREAM}
+adapters:
+  dynamodb:
+    region: ${AWS_REGION}
+    events-table: ${DYNAMODB_EVENTS_TABLE}
+    inventory-table: ${DYNAMODB_INVENTORY_TABLE}
+    events-by-status-date-index: ${DYNAMODB_EVENTS_BY_STATUS_DATE_INDEX}
+    api-call-timeout: ${DYNAMODB_API_CALL_TIMEOUT}
+    api-call-attempt-timeout: ${DYNAMODB_API_CALL_ATTEMPT_TIMEOUT}
+    batch-concurrency: ${DYNAMODB_BATCH_CONCURRENCY}
+    health-check-timeout: ${DYNAMODB_HEALTH_CHECK_TIMEOUT}
+inventory:
+  shard-count: ${INVENTORY_SHARD_COUNT}
+availability:
+  poll-interval: ${AVAILABILITY_POLL_INTERVAL}
+  batch-max-ids: ${AVAILABILITY_BATCH_MAX_IDS}
+  stream:
+    heartbeat: ${AVAILABILITY_STREAM_HEARTBEAT}
+    max-duration: ${AVAILABILITY_STREAM_MAX_DURATION}
+    retry: ${AVAILABILITY_STREAM_RETRY}
+pagination:
+  events:
+    default-size: ${EVENTS_PAGE_DEFAULT_SIZE}
+    max-size: ${EVENTS_PAGE_MAX_SIZE}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS_EXPOSURE}
+  endpoint:
+    health:
+      probes:
+        enabled: ${MANAGEMENT_HEALTH_PROBES_ENABLED}
+      show-components: ${MANAGEMENT_HEALTH_SHOW_COMPONENTS}

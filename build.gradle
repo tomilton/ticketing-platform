@@ -1,0 +1,131 @@
+plugins {
+	id 'co.com.bancolombia.cleanArchitecture'
+	id 'org.springframework.boot' version '4.1.2' apply false
+    id 'org.sonarqube'
+    id 'info.solidsoft.pitest'
+}
+
+ext {
+    awsSdkVersion = providers.gradleProperty('awsSdkVersion').get()
+    mapstructVersion = providers.gradleProperty('mapstructVersion').get()
+    springdocVersion = providers.gradleProperty('springdocVersion').get()
+    testcontainersVersion = providers.gradleProperty('testcontainersVersion').get()
+    blockhoundVersion = providers.gradleProperty('blockhoundVersion').get()
+    lombokMapstructBindingVersion = providers.gradleProperty('lombokMapstructBindingVersion').get()
+}
+
+allprojects {
+    repositories {
+        mavenCentral()
+    }
+    // C037: Trivy reads the Gradle dependencies from the lockfiles.
+    dependencyLocking {
+        lockAllConfigurations()
+    }
+    tasks.register('resolveAndLockAll') {
+        description = 'Resolves every configuration to write the dependency lockfiles (use with --write-locks)'
+        notCompatibleWithConfigurationCache('Resolves configurations at execution time')
+        doFirst {
+            assert gradle.startParameter.writeDependencyLocks : 'Run with --write-locks'
+        }
+        doLast {
+            configurations.findAll { it.canBeResolved }.each { it.resolve() }
+        }
+    }
+    dependencies {
+		implementation platform("software.amazon.awssdk:bom:${rootProject.ext.awsSdkVersion}")
+    }
+}
+
+// Force dependency versions to address reported vulnerabilities.
+dependenciesOverride {
+   ensure 'com.fasterxml.jackson.core:jackson-core:2.22.4'
+   ensure 'tools.jackson.core:jackson-core:3.2.4'
+}
+
+subprojects {
+    plugins.withId('info.solidsoft.pitest') {
+        // D-009: mutation testing reports, it never fails the build.
+        pitest {
+            failWhenNoMutations = false
+            mutationThreshold = 0
+            coverageThreshold = 0
+        }
+    }
+    plugins.withType(JavaPlugin).configureEach {
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(25)
+                vendor = JvmVendorSpec.ADOPTIUM
+            }
+        }
+    }
+
+    // Remove once it has been updated in Spring Boot
+    ext['jackson-2-bom.version'] = "2.22.4"
+    ext['jackson-bom.version'] = "3.2.4"
+}
+
+def applicationYamlFiles = files('applications/app-service/src/main/resources/application.yaml',
+        'applications/app-service/src/main/resources/application-local.yaml')
+def environmentExampleFile = file('deployment/.env.example')
+def terraformFiles = fileTree('deployment/terraform') { include '**/*.tf' }
+
+// C051: every ${VAR} of the application configuration exists in deployment/.env.example and the other
+// way round. Variables read directly by the AWS SDK, Spring or the containers are allowed.
+tasks.register('verifyEnvironmentParity') {
+    group = 'verification'
+    description = 'Checks that application*.yaml and deployment/.env.example declare the same variables'
+    inputs.files(applicationYamlFiles, environmentExampleFile)
+    def allowedOnlyInEnvironment = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'SPRING_PROFILES_ACTIVE', 'SONAR_PORT'] as Set
+    doLast {
+        def placeholder = ~/\$\{([A-Z0-9_]+)}/
+        def yamlVariables = applicationYamlFiles.files.collectMany { yaml -> (yaml.text =~ placeholder).collect { it[1] } } as Set
+        def environmentVariables = environmentExampleFile.readLines()
+                .findAll { line -> line.contains('=') && !line.startsWith('#') }
+                .collect { line -> line.substring(0, line.indexOf('=')).trim() } as Set
+        def missingInEnvironment = yamlVariables - environmentVariables
+        def missingInYaml = environmentVariables - yamlVariables - allowedOnlyInEnvironment
+        if (!terraformFiles.isEmpty()) {
+            def terraformText = terraformFiles.files*.text.join('\n')
+            missingInEnvironment += yamlVariables.findAll { !terraformText.contains(it) }
+        }
+        if (missingInEnvironment || missingInYaml) {
+            throw new GradleException("Environment parity failed. Missing in .env.example or Terraform: "
+                    + missingInEnvironment.sort() + "; missing in application*.yaml: " + missingInYaml.sort())
+        }
+    }
+}
+
+apply plugin: 'jacoco'
+
+def coveredProjects = subprojects
+def mergedCoverageXml = layout.buildDirectory.file('reports/jacoco/jacocoMergedReport/jacocoMergedReport.xml')
+def minimumLineCoverage = 0.90
+
+tasks.register('jacocoMergedCoverageVerification', JacocoCoverageVerification) {
+    group = 'verification'
+    description = 'Fails when the combined line coverage is below the quality gate'
+    dependsOn 'jacocoMergedReport'
+    executionData.from(coveredProjects.collect { it.layout.buildDirectory.file('jacoco/test.exec') })
+    sourceDirectories.from(coveredProjects.collect { it.file('src/main/java') })
+    classDirectories.from(coveredProjects.collect { it.layout.buildDirectory.dir('classes/java/main') })
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                minimum = minimumLineCoverage
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn 'jacocoMergedCoverageVerification'
+}
+
+sonar {
+    properties {
+        property 'sonar.coverage.jacoco.xmlReportPaths', mergedCoverageXml.get().asFile.absolutePath
+    }
+}
