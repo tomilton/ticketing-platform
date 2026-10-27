@@ -10,7 +10,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum SuccessMessage {
     SUCCESSFUL("TKS0001", "Successful"),
-    CREATED("TKS0002", "Created");
+    CREATED("TKS0002", "Created"),
+    ACCEPTED("TKS0003", "Accepted");
 
     private final String code;
     private final String message;
