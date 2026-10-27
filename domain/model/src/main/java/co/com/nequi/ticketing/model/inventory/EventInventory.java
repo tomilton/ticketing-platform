@@ -1,10 +1,12 @@
 package co.com.nequi.ticketing.model.inventory;
 
+import co.com.nequi.ticketing.model.shared.Capacity;
 import co.com.nequi.ticketing.model.shared.EventId;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.function.ToIntFunction;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -21,10 +23,36 @@ import java.util.stream.Stream;
 public record EventInventory(EventId eventId, Integer capacity, Integer available, Integer reserved,
                              Integer sold, Integer complimentary) {
 
+    private static final Long INITIAL_VERSION = 1L;
+    private static final Integer EMPTY = 0;
+
     public EventInventory {
         Objects.requireNonNull(eventId, "Event id must not be null");
         Objects.requireNonNull(capacity, "Capacity must not be null");
         requireCountersAddUpTo(capacity, available, reserved, sold, complimentary);
+    }
+
+    /**
+     * Splits the capacity of a new event into shards. Each shard gets the same share and the first
+     * ones get one extra ticket when the capacity is not divisible. Every ticket starts available.
+     *
+     * @param eventId    the event
+     * @param capacity   the total number of tickets
+     * @param shardCount the configured number of shards; it is limited to the capacity
+     * @return the shards ordered by shard id
+     */
+    public static List<InventoryShard> initialShards(EventId eventId, Capacity capacity, Integer shardCount) {
+        int total = capacity.value();
+        int shards = Math.min(shardCount, total);
+        int share = total / shards;
+        int remainder = total % shards;
+        return IntStream.range(0, shards)
+                .mapToObj(shardId -> {
+                    int shardCapacity = shardId < remainder ? share + 1 : share;
+                    return new InventoryShard(eventId, shardId, shardCapacity, shardCapacity,
+                            EMPTY, EMPTY, EMPTY, INITIAL_VERSION);
+                })
+                .toList();
     }
 
     /**
