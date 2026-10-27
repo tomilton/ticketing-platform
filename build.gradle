@@ -12,6 +12,7 @@ ext {
     testcontainersVersion = providers.gradleProperty('testcontainersVersion').get()
     blockhoundVersion = providers.gradleProperty('blockhoundVersion').get()
     objectMapperVersion = providers.gradleProperty('objectMapperVersion').get()
+    lombokMapstructBindingVersion = providers.gradleProperty('lombokMapstructBindingVersion').get()
 }
 
 allprojects {

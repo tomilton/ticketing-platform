@@ -1,10 +1,12 @@
 package co.com.nequi.ticketing.dynamodb.entity;
 
+import co.com.nequi.ticketing.dynamodb.converter.EventStatusConverter;
 import co.com.nequi.ticketing.model.enums.EventStatus;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbConvertedBy;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondarySortKey;
@@ -29,7 +31,8 @@ public class EventEntity {
     @Getter(onMethod_ = @DynamoDbSecondarySortKey(indexNames = STATUS_DATE_INDEX))
     private Long date;
     private Integer capacity;
-    @Getter(onMethod_ = @DynamoDbSecondaryPartitionKey(indexNames = STATUS_DATE_INDEX))
+    @Getter(onMethod_ = {@DynamoDbSecondaryPartitionKey(indexNames = STATUS_DATE_INDEX),
+            @DynamoDbConvertedBy(EventStatusConverter.class)})
     private EventStatus status;
     private Integer shardCount;
     private Long version;
