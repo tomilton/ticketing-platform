@@ -30,6 +30,14 @@ dependenciesOverride {
 }
 
 subprojects {
+    plugins.withId('info.solidsoft.pitest') {
+        // D-009: mutation testing reports, it never fails the build.
+        pitest {
+            failWhenNoMutations = false
+            mutationThreshold = 0
+            coverageThreshold = 0
+        }
+    }
     plugins.withType(JavaPlugin).configureEach {
         java {
             toolchain {
@@ -72,5 +80,38 @@ tasks.register('verifyEnvironmentParity') {
             throw new GradleException("Environment parity failed. Missing in .env.example or Terraform: "
                     + missingInEnvironment.sort() + "; missing in application*.yaml: " + missingInYaml.sort())
         }
+    }
+}
+
+apply plugin: 'jacoco'
+
+def coveredProjects = subprojects
+def mergedCoverageXml = layout.buildDirectory.file('reports/jacoco/jacocoMergedReport/jacocoMergedReport.xml')
+def minimumLineCoverage = 0.90
+
+tasks.register('jacocoMergedCoverageVerification', JacocoCoverageVerification) {
+    group = 'verification'
+    description = 'Fails when the combined line coverage is below the quality gate'
+    dependsOn 'jacocoMergedReport'
+    executionData.from(coveredProjects.collect { it.layout.buildDirectory.file('jacoco/test.exec') })
+    sourceDirectories.from(coveredProjects.collect { it.file('src/main/java') })
+    classDirectories.from(coveredProjects.collect { it.layout.buildDirectory.dir('classes/java/main') })
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                minimum = minimumLineCoverage
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn 'jacocoMergedCoverageVerification'
+}
+
+sonar {
+    properties {
+        property 'sonar.coverage.jacoco.xmlReportPaths', mergedCoverageXml.get().asFile.absolutePath
     }
 }
