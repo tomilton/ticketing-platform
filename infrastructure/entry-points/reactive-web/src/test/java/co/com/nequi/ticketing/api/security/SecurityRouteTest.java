@@ -81,6 +81,28 @@ class SecurityRouteTest {
                 .expectStatus().isOk();
     }
 
+    @ParameterizedTest
+    @MethodSource("adminRoutes")
+    void shouldRejectWithForbiddenWhenCustomerCallsAdministratorRoute(HttpMethod method, String path) {
+        // When / Then
+        webTestClient.method(method).uri(path)
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.bearer(TestTokens.customer()))
+                .exchange()
+                .expectStatus().isForbidden()
+                .expectBody()
+                .jsonPath("$.errors[0].code").isEqualTo("TKT0011");
+    }
+
+    @ParameterizedTest
+    @MethodSource("customerRoutes")
+    void shouldLetRequestThroughWhenCustomerCallsCustomerRoute(HttpMethod method, String path) {
+        // When / Then
+        webTestClient.method(method).uri(path)
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.bearer(TestTokens.customer()))
+                .exchange()
+                .expectStatus().isOk();
+    }
+
     private static void assertUnauthorized(WebTestClient.ResponseSpec response) {
         response.expectStatus().isUnauthorized()
                 .expectHeader().valueEquals(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
@@ -88,12 +110,20 @@ class SecurityRouteTest {
                 .jsonPath("$.errors[0].code").isEqualTo("TKT0010");
     }
 
-    private static Stream<Arguments> protectedRoutes() {
+    private static Stream<Arguments> customerRoutes() {
         return Stream.of(
                 Arguments.of(HttpMethod.POST, "/api/v1/orders"),
-                Arguments.of(HttpMethod.GET, "/api/v1/orders/" + ORDER),
+                Arguments.of(HttpMethod.GET, "/api/v1/orders/" + ORDER));
+    }
+
+    private static Stream<Arguments> adminRoutes() {
+        return Stream.of(
                 Arguments.of(HttpMethod.POST, "/api/v1/events"),
                 Arguments.of(HttpMethod.POST, "/api/v1/events/" + EVENT + "/complimentary"));
+    }
+
+    private static Stream<Arguments> protectedRoutes() {
+        return Stream.concat(customerRoutes(), adminRoutes());
     }
 
     private static Stream<Arguments> protectedRoutesWithInvalidTokens() {

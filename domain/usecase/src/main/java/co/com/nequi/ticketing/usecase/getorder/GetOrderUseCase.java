@@ -10,8 +10,9 @@ import reactor.core.publisher.Mono;
 import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.ORDER_NOT_FOUND;
 
 /**
- * Gets an order of the customer who asks, with its effective status and tickets at the instant of
- * the query. The order of another customer is answered as if it did not exist.
+ * Gets an order with its effective status and tickets at the instant of the query. A customer reads
+ * only its own orders: the order of another customer is answered as if it did not exist, so the answer
+ * does not reveal which orders exist. An administrator reads any order.
  */
 @RequiredArgsConstructor
 public class GetOrderUseCase {
@@ -21,7 +22,7 @@ public class GetOrderUseCase {
 
     public Mono<OrderView> get(GetOrderQuery query) {
         return orderRepository.findById(query.orderId())
-                .filter(order -> order.isOwnedBy(query.customerId()))
+                .filter(order -> query.requester().admin() || order.isOwnedBy(query.requester().id()))
                 .switchIfEmpty(Mono.defer(() -> Mono.error(ORDER_NOT_FOUND.build())))
                 .map(order -> {
                     var now = clockProvider.now();

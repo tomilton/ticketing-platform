@@ -17,8 +17,8 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
 /**
- * Handler of the complimentary tickets of an event. It requires the administrator role, which is
- * verified from feature 004 on.
+ * Handler of the complimentary tickets of an event. The security filter chain lets only an
+ * administrator reach it.
  */
 @Component
 @RequiredArgsConstructor

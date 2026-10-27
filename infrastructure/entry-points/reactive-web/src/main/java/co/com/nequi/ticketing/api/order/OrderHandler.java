@@ -64,7 +64,7 @@ public class OrderHandler {
 
     public Mono<ServerResponse> getOrder(ServerRequest request) {
         return authenticatedUserResolver.resolve()
-                .flatMap(user -> Mono.fromCallable(() -> new GetOrderQuery(user.id(),
+                .flatMap(user -> Mono.fromCallable(() -> new GetOrderQuery(user,
                         HeaderParser.parseOrderId(request.pathVariable(HeaderParser.ORDER_ID)))))
                 .flatMap(getOrderUseCase::get)
                 .map(orderMapper::toResponse)

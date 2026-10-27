@@ -20,6 +20,7 @@ import co.com.nequi.ticketing.model.order.PlacementOutcome;
 import co.com.nequi.ticketing.model.order.Quantity;
 import co.com.nequi.ticketing.model.order.command.PlaceOrderCommand;
 import co.com.nequi.ticketing.model.order.request.GetOrderQuery;
+import co.com.nequi.ticketing.model.shared.AuthenticatedUser;
 import co.com.nequi.ticketing.model.shared.CustomerId;
 import co.com.nequi.ticketing.model.shared.EventId;
 import co.com.nequi.ticketing.usecase.getorder.GetOrderUseCase;
@@ -179,7 +180,7 @@ class OrderRouteIntegrationTest {
         Order order = Order.place(OrderId.newId(), customerId, new EventId(UUID.fromString(EVENT)), new Quantity(2), 0,
                 EXPIRES_AT.minusSeconds(600), Duration.ofMinutes(10));
         Instant now = EXPIRES_AT.minusSeconds(60);
-        when(getOrderUseCase.get(new GetOrderQuery(customerId, order.getOrderId())))
+        when(getOrderUseCase.get(new GetOrderQuery(new AuthenticatedUser(customerId, Boolean.TRUE), order.getOrderId())))
                 .thenReturn(Mono.just(new OrderView(order, order.effectiveStatus(now), order.ticketsAt(now))));
 
         // When / Then

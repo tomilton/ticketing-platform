@@ -4,6 +4,7 @@ import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
 import co.com.nequi.ticketing.model.order.command.PlaceOrderCommand;
 import co.com.nequi.ticketing.model.order.event.OrderPlacedMessage;
 import co.com.nequi.ticketing.model.order.request.GetOrderQuery;
+import co.com.nequi.ticketing.model.shared.AuthenticatedUser;
 import co.com.nequi.ticketing.model.shared.CustomerId;
 import co.com.nequi.ticketing.model.shared.EventId;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,7 @@ class OrderRequestsTest {
     void shouldThrowNullPointerExceptionWhenQueryComponentIsNull() {
         // When / Then
         assertThatThrownBy(() -> new GetOrderQuery(null, ORDER_ID)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new GetOrderQuery(CUSTOMER_ID, null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new GetOrderQuery(new AuthenticatedUser(CUSTOMER_ID, Boolean.FALSE), null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
