@@ -11,7 +11,6 @@ ext {
     springdocVersion = providers.gradleProperty('springdocVersion').get()
     testcontainersVersion = providers.gradleProperty('testcontainersVersion').get()
     blockhoundVersion = providers.gradleProperty('blockhoundVersion').get()
-    objectMapperVersion = providers.gradleProperty('objectMapperVersion').get()
     lombokMapstructBindingVersion = providers.gradleProperty('lombokMapstructBindingVersion').get()
 }
 
@@ -43,4 +42,35 @@ subprojects {
     // Remove once it has been updated in Spring Boot
     ext['jackson-2-bom.version'] = "2.22.4"
     ext['jackson-bom.version'] = "3.2.4"
+}
+
+def applicationYamlFiles = files('applications/app-service/src/main/resources/application.yaml',
+        'applications/app-service/src/main/resources/application-local.yaml')
+def environmentExampleFile = file('deployment/.env.example')
+def terraformFiles = fileTree('deployment/terraform') { include '**/*.tf' }
+
+// C051: every ${VAR} of the application configuration exists in deployment/.env.example and the other
+// way round. Variables read directly by the AWS SDK, Spring or the containers are allowed.
+tasks.register('verifyEnvironmentParity') {
+    group = 'verification'
+    description = 'Checks that application*.yaml and deployment/.env.example declare the same variables'
+    inputs.files(applicationYamlFiles, environmentExampleFile)
+    def allowedOnlyInEnvironment = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'SPRING_PROFILES_ACTIVE'] as Set
+    doLast {
+        def placeholder = ~/\$\{([A-Z0-9_]+)}/
+        def yamlVariables = applicationYamlFiles.files.collectMany { yaml -> (yaml.text =~ placeholder).collect { it[1] } } as Set
+        def environmentVariables = environmentExampleFile.readLines()
+                .findAll { line -> line.contains('=') && !line.startsWith('#') }
+                .collect { line -> line.substring(0, line.indexOf('=')).trim() } as Set
+        def missingInEnvironment = yamlVariables - environmentVariables
+        def missingInYaml = environmentVariables - yamlVariables - allowedOnlyInEnvironment
+        if (!terraformFiles.isEmpty()) {
+            def terraformText = terraformFiles.files*.text.join('\n')
+            missingInEnvironment += yamlVariables.findAll { !terraformText.contains(it) }
+        }
+        if (missingInEnvironment || missingInYaml) {
+            throw new GradleException("Environment parity failed. Missing in .env.example or Terraform: "
+                    + missingInEnvironment.sort() + "; missing in application*.yaml: " + missingInYaml.sort())
+        }
+    }
 }

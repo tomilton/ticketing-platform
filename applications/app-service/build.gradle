@@ -1,12 +1,20 @@
 
 dependencies {
-	implementation "org.reactivecommons.utils:object-mapper:${objectMapperVersion}"
 	implementation 'software.amazon.awssdk:sts'
 	implementation 'org.springframework.boot:spring-boot-micrometer-tracing-opentelemetry'
 	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
 	testImplementation(testFixtures(project(':dynamo-db')))
+	testImplementation 'org.springframework.boot:spring-boot-starter-webflux-test'
 }
 
 tasks.named('test') {
 	systemProperty 'project.root', rootProject.projectDir.absolutePath
+}
+
+tasks.named('check') {
+	dependsOn ':verifyEnvironmentParity'
+}
+
+pitest {
+	excludedTestClasses = ['co.com.nequi.ticketing.observability.*', 'co.com.nequi.ticketing.performance.*']
 }

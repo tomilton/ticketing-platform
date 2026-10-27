@@ -1,0 +1,3 @@
+adapters:
+  dynamodb:
+    endpoint: ${AWS_ENDPOINT_URL}
