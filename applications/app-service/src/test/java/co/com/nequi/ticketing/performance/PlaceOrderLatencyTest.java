@@ -97,7 +97,6 @@ class PlaceOrderLatencyTest {
         String authorization = TestIdentityProvider.bearer(TestIdentityProvider.customer(customer));
         long start = System.nanoTime();
         webTestClient.post().uri(ORDERS)
-                .header("X-Customer-Id", customer)
                 .header(HttpHeaders.AUTHORIZATION, authorization)
                 .header("Idempotency-Key", UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON)

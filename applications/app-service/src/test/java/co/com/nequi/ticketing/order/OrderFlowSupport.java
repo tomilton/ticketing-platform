@@ -72,7 +72,7 @@ final class OrderFlowSupport {
     }
 
     static Mono<String> placeOrder(WebClient client, String customer, String key, String eventId, Integer quantity) {
-        return client.post().uri("/orders").header("X-Customer-Id", customer).header("Idempotency-Key", key)
+        return client.post().uri("/orders").header("Idempotency-Key", key)
                 .header(HttpHeaders.AUTHORIZATION, bearer(TestIdentityProvider.customer(customer)))
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("{\"eventId\":\"" + eventId + "\",\"quantity\":" + quantity + "}")
@@ -80,7 +80,7 @@ final class OrderFlowSupport {
     }
 
     static Mono<JsonNode> order(WebClient client, String customer, String orderId) {
-        return client.get().uri("/orders/" + orderId).header("X-Customer-Id", customer)
+        return client.get().uri("/orders/" + orderId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(TestIdentityProvider.customer(customer)))
                 .retrieve().bodyToMono(String.class)
                 .map(body -> JSON.readTree(body).path("data"));

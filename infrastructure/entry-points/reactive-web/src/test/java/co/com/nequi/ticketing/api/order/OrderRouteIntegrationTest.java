@@ -36,6 +36,7 @@ import org.springframework.boot.webflux.test.autoconfigure.WebFluxTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -80,7 +81,7 @@ class OrderRouteIntegrationTest {
                 .thenReturn(Mono.just(new PlacementOutcome.Accepted(orderId, OrderStatus.RESERVED, EXPIRES_AT)));
 
         // When / Then
-        post(CUSTOMER, KEY, body(2))
+        post(KEY, body(2))
                 .expectStatus().isAccepted()
                 .expectBody()
                 .jsonPath("$.meta.code").isEqualTo("TKS0003")
@@ -103,13 +104,13 @@ class OrderRouteIntegrationTest {
         when(placeOrderUseCase.place(COMMAND)).thenReturn(Mono.error(rejection.build()));
 
         // When / Then
-        assertError(post(CUSTOMER, KEY, body(2)), status, code);
+        assertError(post(KEY, body(2)), status, code);
     }
 
     @Test
     void shouldRejectWithEmptyBodyErrorWhenBodyIsMissing() {
         // When / Then
-        assertError(webTestClient.post().uri(ORDERS).header("X-Customer-Id", CUSTOMER).header("Idempotency-Key", KEY)
+        assertError(webTestClient.post().uri(ORDERS).header("Idempotency-Key", KEY)
                 .contentType(MediaType.APPLICATION_JSON).exchange(), 400, "TKT0003");
         verifyNoInteractions(placeOrderUseCase);
     }
@@ -117,14 +118,14 @@ class OrderRouteIntegrationTest {
     @Test
     void shouldRejectWithInvalidJsonErrorWhenBodyIsBroken() {
         // When / Then
-        assertError(post(CUSTOMER, KEY, "{\"eventId\":"), 400, "TKT0002");
+        assertError(post(KEY, "{\"eventId\":"), 400, "TKT0002");
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"0", "-1", "7", "2.5"})
     void shouldRejectNamingQuantityWhenQuantityIsInvalid(String quantity) {
         // When / Then
-        assertErrorNaming(post(CUSTOMER, KEY, "{\"eventId\":\"" + EVENT + "\",\"quantity\":" + quantity + "}"),
+        assertErrorNaming(post(KEY, "{\"eventId\":\"" + EVENT + "\",\"quantity\":" + quantity + "}"),
                 "quantity");
         verifyNoInteractions(placeOrderUseCase);
     }
@@ -132,36 +133,42 @@ class OrderRouteIntegrationTest {
     @Test
     void shouldRejectNamingEventIdWhenEventIdIsMissing() {
         // When / Then
-        assertErrorNaming(post(CUSTOMER, KEY, "{\"quantity\":2}"), "eventId");
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"", "abc"})
-    void shouldRejectNamingCustomerHeaderWhenCustomerIdIsInvalid(String customer) {
-        // When / Then
-        assertErrorNaming(post(customer, KEY, body(2)), "X-Customer-Id");
-        verifyNoInteractions(placeOrderUseCase);
+        assertErrorNaming(post(KEY, "{\"quantity\":2}"), "eventId");
     }
 
     @Test
-    void shouldRejectNamingCustomerHeaderWhenCustomerIdIsMissing() {
+    void shouldPlaceOrderForTokenSubjectWhenCustomerHeaderNamesAnotherCustomer() {
+        // Given
+        when(placeOrderUseCase.place(COMMAND)).thenReturn(Mono.just(
+                new PlacementOutcome.Accepted(OrderId.newId(), OrderStatus.RESERVED, EXPIRES_AT)));
+
         // When / Then
-        assertErrorNaming(webTestClient.post().uri(ORDERS).header("Idempotency-Key", KEY)
-                .contentType(MediaType.APPLICATION_JSON).bodyValue(body(2)).exchange(), "X-Customer-Id");
+        webTestClient.post().uri(ORDERS).header("X-Customer-Id", UUID.randomUUID().toString())
+                .header("Idempotency-Key", KEY).contentType(MediaType.APPLICATION_JSON).bodyValue(body(2)).exchange()
+                .expectStatus().isAccepted();
+    }
+
+    @Test
+    void shouldRejectWithUnauthorizedWhenTokenIsMissing() {
+        // When / Then
+        assertError(webTestClient.mutate().defaultHeaders(headers -> headers.remove(HttpHeaders.AUTHORIZATION)).build()
+                .post().uri(ORDERS).header("Idempotency-Key", KEY)
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(body(2)).exchange(), 401, "TKT0010");
+        verifyNoInteractions(placeOrderUseCase);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"", "abc"})
     void shouldRejectWithMissingKeyErrorWhenIdempotencyKeyIsInvalid(String key) {
         // When / Then
-        assertError(post(CUSTOMER, key, body(2)), 400, "TKT0004");
+        assertError(post(key, body(2)), 400, "TKT0004");
         verifyNoInteractions(placeOrderUseCase);
     }
 
     @Test
     void shouldRejectWithMissingKeyErrorWhenIdempotencyKeyIsMissing() {
         // When / Then
-        assertError(webTestClient.post().uri(ORDERS).header("X-Customer-Id", CUSTOMER)
+        assertError(webTestClient.post().uri(ORDERS)
                 .contentType(MediaType.APPLICATION_JSON).bodyValue(body(2)).exchange(), 400, "TKT0004");
     }
 
@@ -203,13 +210,13 @@ class OrderRouteIntegrationTest {
         verifyNoInteractions(getOrderUseCase);
     }
 
-    private WebTestClient.ResponseSpec post(String customer, String key, String body) {
-        return webTestClient.post().uri(ORDERS).header("X-Customer-Id", customer).header("Idempotency-Key", key)
+    private WebTestClient.ResponseSpec post(String key, String body) {
+        return webTestClient.post().uri(ORDERS).header("Idempotency-Key", key)
                 .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange();
     }
 
     private WebTestClient.ResponseSpec get(String orderId) {
-        return webTestClient.get().uri(ORDERS + "/" + orderId).header("X-Customer-Id", CUSTOMER).exchange();
+        return webTestClient.get().uri(ORDERS + "/" + orderId).exchange();
     }
 
     private static String body(Integer quantity) {
