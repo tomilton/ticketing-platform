@@ -8,12 +8,14 @@ import co.com.nequi.ticketing.api.handle.exceptions.ErrorStatusMapper;
 import co.com.nequi.ticketing.api.handle.exceptions.GlobalErrorWebExceptionHandler;
 import co.com.nequi.ticketing.api.validation.BeanValidator;
 import co.com.nequi.ticketing.model.enums.BusinessErrorMessage;
+import co.com.nequi.ticketing.model.enums.EventStatus;
 import co.com.nequi.ticketing.model.event.Event;
 import co.com.nequi.ticketing.model.event.Venue;
 import co.com.nequi.ticketing.model.event.command.CreateEventCommand;
 import co.com.nequi.ticketing.model.shared.Capacity;
 import co.com.nequi.ticketing.model.shared.EventId;
 import co.com.nequi.ticketing.usecase.createevent.CreateEventUseCase;
+import co.com.nequi.ticketing.usecase.getevent.GetEventUseCase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -31,6 +33,7 @@ import reactor.core.publisher.Mono;
 import java.time.Instant;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -52,6 +55,9 @@ class EventRouteIntegrationTest {
 
     @MockitoBean
     private CreateEventUseCase createEventUseCase;
+
+    @MockitoBean
+    private GetEventUseCase getEventUseCase;
 
     @Test
     void shouldCreateEventWhenRequestIsValid() {
@@ -109,6 +115,67 @@ class EventRouteIntegrationTest {
 
         // When / Then
         assertError(post(body("Rock", "Arena", "Bogota", DATE.toString(), "1")), 422, "TKB0010");
+    }
+
+    @Test
+    void shouldReturnEveryFieldWhenEventExists() {
+        // Given
+        when(getEventUseCase.get(EVENT_ID)).thenReturn(Mono.just(EVENT));
+
+        // When / Then
+        get(EVENT_ID.value().toString())
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.meta.code").isEqualTo("TKS0001")
+                .jsonPath("$.data.eventId").isEqualTo(EVENT_ID.value().toString())
+                .jsonPath("$.data.name").isEqualTo("Rock al Parque")
+                .jsonPath("$.data.venue.name").isEqualTo("Movistar Arena")
+                .jsonPath("$.data.venue.city").isEqualTo("Bogota")
+                .jsonPath("$.data.date").isEqualTo(DATE.toString())
+                .jsonPath("$.data.capacity").isEqualTo(500)
+                .jsonPath("$.data.status").isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void shouldReturnCancelledOrPastEventsWithTheirStatusAndDateWhenTheyExist() {
+        // Given
+        Instant pastDate = Instant.parse("2025-03-20T01:00:00Z");
+        Event cancelled = EVENT.toBuilder().status(EventStatus.CANCELLED).build();
+        EventId pastEventId = EventId.newId();
+        Event past = EVENT.toBuilder().eventId(pastEventId).date(pastDate).build();
+        when(getEventUseCase.get(EVENT_ID)).thenReturn(Mono.just(cancelled));
+        when(getEventUseCase.get(pastEventId)).thenReturn(Mono.just(past));
+
+        // When / Then
+        get(EVENT_ID.value().toString()).expectStatus().isOk().expectBody()
+                .jsonPath("$.data.status").isEqualTo("CANCELLED")
+                .jsonPath("$.data.date").isEqualTo(DATE.toString());
+        get(pastEventId.value().toString()).expectStatus().isOk().expectBody()
+                .jsonPath("$.data.status").isEqualTo("ACTIVE")
+                .jsonPath("$.data.date").isEqualTo(pastDate.toString());
+    }
+
+    @Test
+    void shouldAnswerNotFoundWhenEventDoesNotExist() {
+        // Given
+        when(getEventUseCase.get(EVENT_ID)).thenReturn(Mono.error(BusinessErrorMessage.EVENT_NOT_FOUND.build()));
+
+        // When / Then
+        assertError(get(EVENT_ID.value().toString()), 404, "TKB0001");
+    }
+
+    @Test
+    void shouldRejectNamingEventIdWhenIdIsNotUuid() {
+        // When / Then
+        get("no-es-uuid").expectStatus().isBadRequest()
+                .expectBody()
+                .jsonPath("$.errors[0].code").isEqualTo("TKT0001")
+                .jsonPath("$.errors[0].message").value(message -> assertThat((String) message).contains("eventId"));
+        verifyNoInteractions(getEventUseCase);
+    }
+
+    private WebTestClient.ResponseSpec get(String eventId) {
+        return webTestClient.get().uri(EVENTS + "/" + eventId).exchange();
     }
 
     private WebTestClient.ResponseSpec post(String body) {

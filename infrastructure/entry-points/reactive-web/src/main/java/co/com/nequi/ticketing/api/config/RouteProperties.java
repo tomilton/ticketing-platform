@@ -26,4 +26,8 @@ public record RouteProperties(@NotBlank String basePath,
     public String eventsPath() {
         return basePath + events;
     }
+
+    public String eventByIdPath() {
+        return basePath + eventById;
+    }
 }
