@@ -46,6 +46,10 @@ adapters:
     listener:
       order-placed-queue: ${SQS_ORDER_PLACED_QUEUE}
       order-placed-dlq: ${SQS_ORDER_PLACED_DLQ}
+  payment:
+    mode: ${PAYMENT_SIMULATOR_MODE}
+    latency: ${PAYMENT_SIMULATOR_LATENCY}
+    timeout: ${PAYMENT_TIMEOUT}
 inventory:
   shard-count: ${INVENTORY_SHARD_COUNT}
 availability:

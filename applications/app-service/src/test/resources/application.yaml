@@ -44,6 +44,10 @@ adapters:
     listener:
       order-placed-queue: order-placed
       order-placed-dlq: order-placed-dlq
+  payment:
+    mode: APPROVE
+    latency: 0s
+    timeout: 2s
 inventory:
   shard-count: 3
 availability:
