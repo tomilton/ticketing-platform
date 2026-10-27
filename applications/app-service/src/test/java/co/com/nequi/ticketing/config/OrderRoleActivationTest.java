@@ -32,7 +32,7 @@ class OrderRoleActivationTest {
             .withBean(OrderHandler.class, () -> mock(OrderHandler.class))
             .withBean(RouteProperties.class, () -> new RouteProperties("/api/v1", "/events", "/events/{eventId}",
                     "/events/{eventId}/availability", "/events/availability", "/events/{eventId}/availability/stream",
-                    "/orders", "/orders/{orderId}"))
+                    "/orders", "/orders/{orderId}", "/events/{eventId}/complimentary"))
             .withBean(SqsListenerClientConfig.LISTENER_CLIENT, SqsAsyncClient.class, () -> mock(SqsAsyncClient.class))
             .withBean(SqsListenerProperties.class, () -> new SqsListenerProperties("us-east-1", null, "order-placed",
                     "order-placed-dlq", Duration.ofSeconds(1), 10, 1))

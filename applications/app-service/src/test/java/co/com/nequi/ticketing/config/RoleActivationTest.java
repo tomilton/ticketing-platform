@@ -19,7 +19,7 @@ class RoleActivationTest {
             .withBean(AvailabilityHandler.class, () -> mock(AvailabilityHandler.class))
             .withBean(RouteProperties.class, () -> new RouteProperties("/api/v1", "/events", "/events/{eventId}",
                     "/events/{eventId}/availability", "/events/availability", "/events/{eventId}/availability/stream",
-                    "/orders", "/orders/{orderId}"));
+                    "/orders", "/orders/{orderId}", "/events/{eventId}/complimentary"));
 
     @Test
     void shouldNotRegisterApiRoutesWhenRoleIsWorker() {

@@ -22,6 +22,7 @@ routes:
   availability-stream: ${ROUTES_AVAILABILITY_STREAM}
   orders: ${ROUTES_ORDERS}
   order-by-id: ${ROUTES_ORDER_BY_ID}
+  complimentary: ${ROUTES_COMPLIMENTARY}
 adapters:
   dynamodb:
     region: ${AWS_REGION}

@@ -11,6 +11,7 @@ routes:
   availability-stream: /events/{eventId}/availability/stream
   orders: /orders
   order-by-id: /orders/{orderId}
+  complimentary: /events/{eventId}/complimentary
 pagination:
   events:
     default-size: 20

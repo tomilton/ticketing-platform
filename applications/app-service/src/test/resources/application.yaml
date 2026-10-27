@@ -24,6 +24,7 @@ routes:
   availability-stream: /events/{eventId}/availability/stream
   orders: /orders
   order-by-id: /orders/{orderId}
+  complimentary: /events/{eventId}/complimentary
 adapters:
   dynamodb:
     api-call-timeout: 5s
