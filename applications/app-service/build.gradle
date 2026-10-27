@@ -8,7 +8,24 @@ dependencies {
 }
 
 tasks.named('test') {
+	useJUnitPlatform {
+		excludeTags 'performance'
+	}
 	systemProperty 'project.root', rootProject.projectDir.absolutePath
+}
+
+tasks.register('performanceTest', Test) {
+	group = 'verification'
+	description = 'Runs the latency tests of SC-001 against LocalStack'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'performance'
+	}
+	systemProperty 'project.root', rootProject.projectDir.absolutePath
+	testLogging {
+		showStandardStreams = true
+	}
 }
 
 tasks.named('check') {
