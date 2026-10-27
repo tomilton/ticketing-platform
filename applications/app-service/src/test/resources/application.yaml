@@ -37,6 +37,15 @@ availability:
     heartbeat: 15s
     max-duration: 30m
     retry: 1s
+orders:
+  max-tickets-per-order: 6
+  max-tickets-per-customer: 6
+  reservation-ttl: 10m
+  republish-grace: 5s
+  republish-concurrency: 4
+idempotency:
+  ttl: 24h
+  lease: 10s
 pagination:
   events:
     default-size: 20

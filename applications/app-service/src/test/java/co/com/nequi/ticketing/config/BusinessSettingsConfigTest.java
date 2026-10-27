@@ -15,7 +15,9 @@ class BusinessSettingsConfigTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withUserConfiguration(BusinessSettingsConfig.class)
-            .withPropertyValues("availability.poll-interval=1s");
+            .withPropertyValues("availability.poll-interval=1s", "orders.max-tickets-per-order=6",
+                    "orders.max-tickets-per-customer=6", "orders.reservation-ttl=10m", "orders.republish-grace=5s",
+                    "orders.republish-concurrency=4", "idempotency.ttl=24h", "idempotency.lease=10s");
 
     @ParameterizedTest
     @ValueSource(strings = {"0", "21"})

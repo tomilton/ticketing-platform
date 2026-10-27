@@ -39,6 +39,15 @@ availability:
     heartbeat: ${AVAILABILITY_STREAM_HEARTBEAT}
     max-duration: ${AVAILABILITY_STREAM_MAX_DURATION}
     retry: ${AVAILABILITY_STREAM_RETRY}
+orders:
+  max-tickets-per-order: ${ORDERS_MAX_TICKETS_PER_ORDER}
+  max-tickets-per-customer: ${ORDERS_MAX_TICKETS_PER_CUSTOMER}
+  reservation-ttl: ${ORDERS_RESERVATION_TTL}
+  republish-grace: ${ORDERS_REPUBLISH_GRACE}
+  republish-concurrency: ${ORDERS_REPUBLISH_CONCURRENCY}
+idempotency:
+  ttl: ${IDEMPOTENCY_TTL}
+  lease: ${IDEMPOTENCY_LEASE}
 pagination:
   events:
     default-size: ${EVENTS_PAGE_DEFAULT_SIZE}
