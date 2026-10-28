@@ -27,6 +27,8 @@ security:
     admin-role: ticketing-admin
     clock-skew: 60s
 webhook:
+  secret: test-only-webhook-secret-0123456789
+  tolerance: 5m
   event-ttl: 7d
 rate-limit:
   orders:
@@ -42,6 +44,7 @@ routes:
   orders: /orders
   order-by-id: /orders/{orderId}
   complimentary: /events/{eventId}/complimentary
+  payment-webhook: /webhooks/payments
 adapters:
   dynamodb:
     api-call-timeout: 5s

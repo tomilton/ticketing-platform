@@ -33,8 +33,8 @@ run "runs_the_api_behind_the_load_balancer_with_its_role" {
   }
 
   assert {
-    condition     = length(jsondecode(aws_ecs_task_definition.this.container_definitions)[0].environment) == 86
-    error_message = "The task must receive the 86 variables of application.yaml that exist in AWS."
+    condition     = length(jsondecode(aws_ecs_task_definition.this.container_definitions)[0].environment) == 88
+    error_message = "The task must receive the 88 variables of application.yaml that exist in AWS."
   }
 
   assert {

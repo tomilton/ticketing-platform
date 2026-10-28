@@ -84,6 +84,18 @@ resource "aws_iam_role_policy" "execution" {
         Action   = ["logs:CreateLogStream", "logs:PutLogEvents"]
         Resource = ["${aws_cloudwatch_log_group.this.arn}:*"]
       },
+      {
+        Sid      = "ReadSecrets"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = values(var.secrets)
+      },
+      {
+        Sid      = "DecryptSecrets"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = var.kms_key_arns
+      },
     ]
   })
 }

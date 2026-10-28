@@ -5,6 +5,11 @@
 # the credentials come from the task role.
 
 locals {
+  # Variables that reach the container from Secrets Manager through var.secrets, never as plain environment.
+  secret_names = [
+    "WEBHOOK_HMAC_SECRET",
+  ]
+
   setting_names = [
     "CORS_ALLOWED_ORIGINS",
     "JWT_JWK_SET_URI",
@@ -65,6 +70,7 @@ locals {
     RATE_LIMIT_ORDERS_PERIOD               = "PT1M"
     HTTP_MAX_BODY_SIZE                     = "16KB"
     WEBHOOK_EVENT_TTL                      = "P7D"
+    WEBHOOK_TOLERANCE                      = "PT5M"
     PAYMENT_CIRCUIT_FAILURE_RATE_THRESHOLD = "50"
     PAYMENT_CIRCUIT_SLIDING_WINDOW_SIZE    = "20"
     PAYMENT_CIRCUIT_MINIMUM_CALLS          = "10"
@@ -78,6 +84,7 @@ locals {
     ROUTES_AVAILABILITY_STREAM             = "/events/{eventId}/availability/stream"
     ROUTES_ORDERS                          = "/orders"
     ROUTES_ORDER_BY_ID                     = "/orders/{orderId}"
+    ROUTES_PAYMENT_WEBHOOK                 = "/webhooks/payments"
     ROUTES_COMPLIMENTARY                   = "/events/{eventId}/complimentary"
     AWS_REGION                             = var.region
     DYNAMODB_EVENTS_TABLE                  = var.table_names["events"]

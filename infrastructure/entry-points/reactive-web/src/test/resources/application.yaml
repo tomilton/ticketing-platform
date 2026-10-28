@@ -17,6 +17,7 @@ routes:
   orders: /orders
   order-by-id: /orders/{orderId}
   complimentary: /events/{eventId}/complimentary
+  payment-webhook: /webhooks/payments
 pagination:
   events:
     default-size: 20
@@ -27,6 +28,9 @@ availability:
     heartbeat: 100ms
     max-duration: 500ms
     retry: 1s
+webhook:
+  secret: test-only-webhook-secret-0123456789
+  tolerance: 5m
 rate-limit:
   orders:
     limit-for-period: 1000

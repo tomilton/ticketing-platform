@@ -82,6 +82,15 @@ module "payment_messaging" {
   kms_deletion_window_days   = var.kms_deletion_window_days
 }
 
+# The value of the webhook secret is set outside Terraform, by whoever agrees it with the payment gateway.
+resource "aws_secretsmanager_secret" "webhook" {
+  #checkov:skip=CKV2_AWS_57:The secret is agreed with the payment gateway and rotated with it, not by a Lambda
+  name                    = "${local.name}/webhook-hmac"
+  description             = "HMAC secret that signs the notices of the payment gateway"
+  kms_key_id              = module.data.kms_key_arn
+  recovery_window_in_days = 7
+}
+
 module "cluster" {
   source = "../ecs-cluster"
 

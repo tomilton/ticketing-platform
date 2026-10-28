@@ -91,6 +91,7 @@ resource "aws_ecs_task_definition" "this" {
     readonlyRootFilesystem = true
     portMappings           = [{ containerPort = var.container_port, protocol = "tcp" }]
     environment            = local.environment
+    secrets                = [for name, arn in var.secrets : { name = name, valueFrom = arn }]
     mountPoints            = [{ sourceVolume = local.tmp_volume, containerPath = "/tmp", readOnly = false }]
     healthCheck = {
       command     = ["CMD", "bash", "-c", local.health_command]

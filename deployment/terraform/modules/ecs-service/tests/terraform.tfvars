@@ -59,6 +59,9 @@ payment_queue = {
   dead_letter_queue_name = "payment-confirmed-dlq"
   dead_letter_queue_arn  = "arn:aws:sqs:us-east-1:123456789012:payment-confirmed-dlq"
 }
+secrets = {
+  WEBHOOK_HMAC_SECRET = "arn:aws:secretsmanager:us-east-1:123456789012:secret:ticketing-webhook-hmac"
+}
 kms_key_arns = ["arn:aws:kms:us-east-1:123456789012:key/tables", "arn:aws:kms:us-east-1:123456789012:key/queues"]
 settings = {
   CORS_ALLOWED_ORIGINS                  = "https://tickets.example.com"

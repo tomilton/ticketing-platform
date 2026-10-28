@@ -25,6 +25,8 @@ security:
     admin-role: ${JWT_ADMIN_ROLE}
     clock-skew: ${JWT_CLOCK_SKEW}
 webhook:
+  secret: ${WEBHOOK_HMAC_SECRET}
+  tolerance: ${WEBHOOK_TOLERANCE}
   event-ttl: ${WEBHOOK_EVENT_TTL}
 rate-limit:
   orders:
@@ -40,6 +42,7 @@ routes:
   orders: ${ROUTES_ORDERS}
   order-by-id: ${ROUTES_ORDER_BY_ID}
   complimentary: ${ROUTES_COMPLIMENTARY}
+  payment-webhook: ${ROUTES_PAYMENT_WEBHOOK}
 adapters:
   dynamodb:
     region: ${AWS_REGION}

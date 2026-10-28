@@ -17,6 +17,9 @@ locals {
       dead_letter_queue_name = module.messaging.dead_letter_queue_name
       dead_letter_queue_arn  = module.messaging.dead_letter_queue_arn
     }
+    secrets = {
+      WEBHOOK_HMAC_SECRET = aws_secretsmanager_secret.webhook.arn
+    }
     payment_queue = {
       name                   = module.payment_messaging.queue_name
       arn                    = module.payment_messaging.queue_arn
@@ -55,6 +58,7 @@ module "api" {
   kms_key_arns            = local.service_inputs.kms_key_arns
   queue                   = local.service_inputs.queue
   payment_queue           = local.service_inputs.payment_queue
+  secrets                 = local.service_inputs.secrets
   load_balancer = {
     security_group_id       = module.alb.alb_security_group_id
     target_group_arn        = module.alb.target_group_arn
@@ -92,5 +96,6 @@ module "worker" {
   kms_key_arns            = local.service_inputs.kms_key_arns
   queue                   = local.service_inputs.queue
   payment_queue           = local.service_inputs.payment_queue
+  secrets                 = local.service_inputs.secrets
   load_balancer           = null
 }

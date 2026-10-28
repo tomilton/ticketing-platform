@@ -142,6 +142,16 @@ variable "payment_queue" {
   })
 }
 
+variable "secrets" {
+  description = "Secrets Manager ARNs injected as environment variables, by variable name; see environment.tf."
+  type        = map(string)
+
+  validation {
+    condition     = toset(keys(var.secrets)) == toset(local.secret_names)
+    error_message = "The secrets must be exactly the secret variables of the application, see local.secret_names."
+  }
+}
+
 variable "kms_key_arns" {
   description = "Keys of the tables and the queues the tasks use."
   type        = list(string)
