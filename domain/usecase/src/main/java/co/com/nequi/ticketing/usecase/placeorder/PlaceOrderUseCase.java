@@ -1,18 +1,14 @@
 package co.com.nequi.ticketing.usecase.placeorder;
 
 import co.com.nequi.ticketing.model.config.OrderSettings;
-import co.com.nequi.ticketing.model.enums.IdempotencyStatus;
 import co.com.nequi.ticketing.model.event.Event;
 import co.com.nequi.ticketing.model.event.gateways.EventRepository;
-import co.com.nequi.ticketing.model.exception.BusinessException;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyClaim;
-import co.com.nequi.ticketing.model.idempotency.IdempotencyRecord;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyScope;
 import co.com.nequi.ticketing.model.idempotency.RequestFingerprint;
 import co.com.nequi.ticketing.model.idempotency.gateways.IdempotencyRepository;
 import co.com.nequi.ticketing.model.order.Order;
 import co.com.nequi.ticketing.model.order.OrderId;
-import co.com.nequi.ticketing.model.order.PlacementOutcome;
 import co.com.nequi.ticketing.model.order.PlacementOutcome.Accepted;
 import co.com.nequi.ticketing.model.order.Quantity;
 import co.com.nequi.ticketing.model.order.ReservationContext;
@@ -21,6 +17,7 @@ import co.com.nequi.ticketing.model.order.event.OrderPlacedMessage;
 import co.com.nequi.ticketing.model.order.gateways.OrderEventPublisher;
 import co.com.nequi.ticketing.model.order.gateways.OrderRepository;
 import co.com.nequi.ticketing.model.shared.gateways.ClockProvider;
+import co.com.nequi.ticketing.usecase.idempotency.IdempotencyGuard;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
@@ -30,8 +27,6 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.EVENT_NOT_ACTIVE;
 import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.EVENT_NOT_FOUND;
-import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.IDEMPOTENCY_KEY_REUSED;
-import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.REQUEST_IN_PROGRESS;
 import static co.com.nequi.ticketing.model.enums.BusinessErrorMessage.TICKET_LIMIT_EXCEEDED;
 
 /**
@@ -56,35 +51,14 @@ public class PlaceOrderUseCase {
                 .flatMap(now -> idempotencyRepository.claim(scope, command.key(), fingerprint, now)
                         .flatMap(claim -> switch (claim) {
                             case IdempotencyClaim.Granted granted -> placeClaimed(command, granted.lockToken(), now);
-                            case IdempotencyClaim.Existing existing -> repeat(existing.record(), fingerprint);
+                            case IdempotencyClaim.Existing existing ->
+                                    IdempotencyGuard.repeat(existing.record(), fingerprint, Mono::just);
                         }));
     }
 
-    private Mono<Accepted> repeat(IdempotencyRecord stored, RequestFingerprint fingerprint) {
-        return Mono.just(stored)
-                .filter(candidate -> candidate.matches(fingerprint))
-                .switchIfEmpty(Mono.defer(() -> Mono.error(IDEMPOTENCY_KEY_REUSED.build())))
-                .filter(candidate -> candidate.status() == IdempotencyStatus.COMPLETED)
-                .switchIfEmpty(Mono.defer(() -> Mono.error(REQUEST_IN_PROGRESS.build())))
-                .flatMap(completed -> replay(completed.outcome()));
-    }
-
-    private Mono<Accepted> replay(PlacementOutcome outcome) {
-        return switch (outcome) {
-            case Accepted accepted -> Mono.just(accepted);
-            case PlacementOutcome.Rejected rejected -> Mono.error(rejected.error().build());
-        };
-    }
-
     private Mono<Accepted> placeClaimed(PlaceOrderCommand command, UUID lockToken, Instant now) {
-        return reserve(command, lockToken, now)
-                .onErrorResume(PlaceOrderUseCase::isDefinitiveRejection, error -> idempotencyRepository
-                        .complete(IdempotencyScope.ofCustomer(command.customerId()), command.key(), lockToken,
-                                new PlacementOutcome.Rejected(((BusinessException) error).getBusinessErrorMessage()))
-                        .then(Mono.error(error)))
-                .onErrorResume(error -> !(error instanceof BusinessException), error -> idempotencyRepository
-                        .release(IdempotencyScope.ofCustomer(command.customerId()), command.key(), lockToken)
-                        .then(Mono.error(error)))
+        return IdempotencyGuard.settleOnFailure(reserve(command, lockToken, now), idempotencyRepository,
+                        IdempotencyScope.ofCustomer(command.customerId()), command.key(), lockToken)
                 .flatMap(order -> publish(order, now).thenReturn(Accepted.of(order)));
     }
 
@@ -118,10 +92,5 @@ public class PlaceOrderUseCase {
         return orderEventPublisher.publishOrderPlaced(message)
                 .then(Mono.defer(() -> orderRepository.markPublished(order.getOrderId(), now)))
                 .onErrorResume(error -> Mono.empty());
-    }
-
-    private static boolean isDefinitiveRejection(Throwable error) {
-        return error instanceof BusinessException business
-                && business.getBusinessErrorMessage() != REQUEST_IN_PROGRESS;
     }
 }
