@@ -73,6 +73,12 @@ adapters:
     timeout: 2s
     approval-rate: 0.5
     slow-latency: 5s
+    circuit-breaker:
+      failure-rate-threshold: 50
+      sliding-window-size: 20
+      minimum-calls: 10
+      wait-in-open: 30s
+      half-open-calls: 3
 inventory:
   shard-count: 3
 availability:

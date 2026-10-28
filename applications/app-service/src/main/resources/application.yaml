@@ -75,6 +75,12 @@ adapters:
     timeout: ${PAYMENT_TIMEOUT}
     approval-rate: ${PAYMENT_SIMULATOR_APPROVAL_RATE}
     slow-latency: ${PAYMENT_SIMULATOR_SLOW_LATENCY}
+    circuit-breaker:
+      failure-rate-threshold: ${PAYMENT_CIRCUIT_FAILURE_RATE_THRESHOLD}
+      sliding-window-size: ${PAYMENT_CIRCUIT_SLIDING_WINDOW_SIZE}
+      minimum-calls: ${PAYMENT_CIRCUIT_MINIMUM_CALLS}
+      wait-in-open: ${PAYMENT_CIRCUIT_WAIT_IN_OPEN}
+      half-open-calls: ${PAYMENT_CIRCUIT_HALF_OPEN_CALLS}
 inventory:
   shard-count: ${INVENTORY_SHARD_COUNT}
 availability:
