@@ -198,7 +198,7 @@ class OrderDynamoRepositoryTest {
                 new IdempotencyEntityMapper(), auditItemBuilder);
         return new OrderDynamoRepository(client, properties, orderMapper, builder,
                 new TransitionTransactionBuilder(properties, auditItemBuilder), new TransactionFailureTranslator(),
-                new ComplimentaryTransactionBuilder(properties, orderMapper, auditItemBuilder));
+                new ComplimentaryTransactionBuilder(properties, orderMapper, auditItemBuilder, builder));
     }
 
     private static TransactionCanceledException cancellation(String... codes) {

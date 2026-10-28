@@ -45,6 +45,7 @@ class ComplimentaryIntegrationTest {
 
     private static final Duration TEST_TIMEOUT = Duration.ofMinutes(1);
     private static final ClockProvider CLOCK = Clock.systemUTC()::instant;
+    private static final CustomerId ADMINISTRATOR_ID = new CustomerId(UUID.randomUUID());
 
     private static LocalStackRepositories repositories;
     private static GrantComplimentaryUseCase useCase;
@@ -52,8 +53,8 @@ class ComplimentaryIntegrationTest {
     @BeforeAll
     static void setUp() {
         repositories = new LocalStackRepositories();
-        useCase = new GrantComplimentaryUseCase(repositories.eventRepository(), repositories.orderRepository(), CLOCK,
-                new ComplimentarySettings(50));
+        useCase = new GrantComplimentaryUseCase(repositories.idempotencyRepository(Duration.ofSeconds(10)),
+                repositories.eventRepository(), repositories.orderRepository(), CLOCK, new ComplimentarySettings(50));
     }
 
     @Test
@@ -125,8 +126,7 @@ class ComplimentaryIntegrationTest {
                 .flatMap(event -> placeOrder.place(new PlaceOrderCommand(customerId,
                                 new IdempotencyKey(UUID.randomUUID()), event.getEventId(), new Quantity(6)))
                         .then(useCase.grant(new GrantComplimentaryCommand(event.getEventId(), customerId,
-                                new ComplimentaryQuantity(2), new CustomerId(UUID.randomUUID()),
-                                new IdempotencyKey(UUID.randomUUID())))));
+                                new ComplimentaryQuantity(2), ADMINISTRATOR_ID, new IdempotencyKey(UUID.randomUUID())))));
 
         // Then
         StepVerifier.create(granted)
@@ -163,8 +163,14 @@ class ComplimentaryIntegrationTest {
     }
 
     private static Mono<Order> grant(Event event, Integer quantity) {
-        return useCase.grant(new GrantComplimentaryCommand(event.getEventId(), new CustomerId(UUID.randomUUID()),
-                new ComplimentaryQuantity(quantity), new CustomerId(UUID.randomUUID()), new IdempotencyKey(UUID.randomUUID())));
+        return useCase.grant(command(event, new CustomerId(UUID.randomUUID()), quantity,
+                new IdempotencyKey(UUID.randomUUID())));
+    }
+
+    private static GrantComplimentaryCommand command(Event event, CustomerId customerId, Integer quantity,
+                                                     IdempotencyKey key) {
+        return new GrantComplimentaryCommand(event.getEventId(), customerId, new ComplimentaryQuantity(quantity),
+                ADMINISTRATOR_ID, key);
     }
 
     private static Mono<EventInventory> inventory(Event event) {

@@ -12,6 +12,7 @@ import co.com.nequi.ticketing.dynamodb.transaction.TransitionTransactionBuilder;
 import co.com.nequi.ticketing.model.event.Event;
 import co.com.nequi.ticketing.model.exception.BusinessException;
 import co.com.nequi.ticketing.model.inventory.InventoryMovement;
+import co.com.nequi.ticketing.model.order.GrantContext;
 import co.com.nequi.ticketing.model.order.Order;
 import co.com.nequi.ticketing.model.order.OrderId;
 import co.com.nequi.ticketing.model.order.OrderTransition;
@@ -150,11 +151,11 @@ public class OrderDynamoRepository implements OrderRepository {
     }
 
     @Override
-    public Mono<Order> grantComplimentary(Order order, Event event, Instant now) {
+    public Mono<Order> grantComplimentary(Order order, Event event, GrantContext context, Instant now) {
         int shardCount = event.getShardCount();
         return Flux.range(0, shardCount)
                 .map(offset -> order.toBuilder().shardId((order.getShardId() + offset) % shardCount).build())
-                .concatMap(candidate -> grantOnShard(candidate, event, now)
+                .concatMap(candidate -> grantOnShard(candidate, event, context, now)
                         .onErrorResume(ShardSoldOutException.class, soldOut -> Mono.empty()))
                 .next()
                 .switchIfEmpty(Mono.defer(() -> Mono.error(TICKETS_SOLD_OUT.build())))
@@ -184,12 +185,12 @@ public class OrderDynamoRepository implements OrderRepository {
                 .onErrorMap(this::toTechnicalException);
     }
 
-    private Mono<Order> grantOnShard(Order order, Event event, Instant now) {
+    private Mono<Order> grantOnShard(Order order, Event event, GrantContext context, Instant now) {
         return Mono.fromFuture(() -> {
                     log.debug("DynamoDB TransactWriteItems, table={}, orderId={}, eventId={}, shardId={}, "
                                     + "operation=grantComplimentary", properties.ordersTable(), order.getOrderId().value(),
                             event.getEventId().value(), order.getShardId());
-                    return client.transactWriteItems(complimentaryBuilder.build(order, event, now));
+                    return client.transactWriteItems(complimentaryBuilder.build(order, event, context, now));
                 })
                 .thenReturn(order)
                 .onErrorMap(TransactionCanceledException.class, failureTranslator::translateGrant)

@@ -6,6 +6,7 @@ import co.com.nequi.ticketing.dynamodb.mapper.IdempotencyEntityMapper;
 import co.com.nequi.ticketing.dynamodb.mapper.OrderEntityMapper;
 import co.com.nequi.ticketing.model.enums.EventStatus;
 import co.com.nequi.ticketing.model.enums.IdempotencyStatus;
+import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyScope;
 import co.com.nequi.ticketing.model.event.Event;
 import co.com.nequi.ticketing.model.order.Order;
@@ -26,6 +27,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
@@ -85,7 +87,7 @@ public class ReservationTransactionBuilder {
                         holdTicketsOfCustomer(order, event, context, quantity),
                         createOrder(order),
                         auditItemBuilder.put(order.placementChange()),
-                        closeKey(order, context)))
+                        closeKey(order, IdempotencyScope.ofCustomer(context.customerId()), context.key(), context.lockToken())))
                 .build();
     }
 
@@ -177,20 +179,30 @@ public class ReservationTransactionBuilder {
                 .build();
     }
 
-    private TransactWriteItem closeKey(Order order, ReservationContext context) {
+    /**
+     * Builds the update that closes an idempotency key with the order, only if the request still
+     * holds the key.
+     *
+     * @param order     the order created under the key
+     * @param scope     the scope of the key
+     * @param key       the key
+     * @param lockToken the token that proves the request holds the key
+     * @return the transaction item that closes the key
+     */
+    public TransactWriteItem closeKey(Order order, IdempotencyScope scope, IdempotencyKey key, UUID lockToken) {
         Map<String, AttributeValue> outcome = idempotencyMapper.outcomeAttributes(PlacementOutcome.Accepted.of(order));
         Map<String, AttributeValue> values = new HashMap<>();
         outcome.forEach((name, value) -> values.put(":" + name, value));
         values.put(":completed", AttributeValue.fromS(IdempotencyStatus.COMPLETED.name()));
         values.put(":inProgress", AttributeValue.fromS(IdempotencyStatus.IN_PROGRESS.name()));
-        values.put(":token", AttributeValue.fromS(context.lockToken().toString()));
+        values.put(":token", AttributeValue.fromS(lockToken.toString()));
         String setOutcome = outcome.keySet().stream().sorted().map(name -> name + " = :" + name)
                 .collect(Collectors.joining(", "));
         return TransactWriteItem.builder()
                 .update(Update.builder()
                         .tableName(properties.idempotencyTable())
                         .key(Map.of(IdempotencyEntityMapper.IDEMPOTENCY_ID,
-                                AttributeValue.fromS(idempotencyMapper.idempotencyId(IdempotencyScope.ofCustomer(context.customerId()), context.key()))))
+                                AttributeValue.fromS(idempotencyMapper.idempotencyId(scope, key))))
                         .updateExpression("SET #status = :completed, " + setOutcome)
                         .conditionExpression(KEY_HELD_CONDITION)
                         .expressionAttributeNames(Map.of("#status", IdempotencyEntityMapper.STATUS))

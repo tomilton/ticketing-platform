@@ -3,6 +3,7 @@ package co.com.nequi.ticketing.dynamodb.transaction;
 import co.com.nequi.ticketing.dynamodb.config.DynamoDbProperties;
 import co.com.nequi.ticketing.dynamodb.mapper.OrderEntityMapper;
 import co.com.nequi.ticketing.model.event.Event;
+import co.com.nequi.ticketing.model.order.GrantContext;
 import co.com.nequi.ticketing.model.order.Order;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -21,15 +22,16 @@ import static co.com.nequi.ticketing.dynamodb.transaction.ReservationTransaction
 
 /**
  * Builds the single transaction that grants a complimentary order: it checks the event, moves the
- * tickets of one shard from available to complimentary, and creates the final order with its audit
- * record. The order has no index bucket, so neither the sweep nor the republication ever reads it.
- * The event and the shard keep the positions of the reservation, so the failures are translated by
- * the same indexes.
+ * tickets of one shard from available to complimentary, creates the final order with its audit
+ * record and closes the idempotency key of the administrator. The order has no index bucket, so
+ * neither the sweep nor the republication ever reads it. The event and the shard keep the positions
+ * of the reservation, so the failures are translated by the same indexes.
  */
 @Component
 @RequiredArgsConstructor
 public class ComplimentaryTransactionBuilder {
 
+    public static final int GRANT_KEY_ITEM = 4;
     static final String GRANT_TICKETS_UPDATE = "SET available = available - :q, "
             + "complimentary = complimentary + :q, version = version + :one";
     private static final String ONE = "1";
@@ -37,22 +39,25 @@ public class ComplimentaryTransactionBuilder {
     private final DynamoDbProperties properties;
     private final OrderEntityMapper orderMapper;
     private final AuditItemBuilder auditItemBuilder;
+    private final ReservationTransactionBuilder reservationBuilder;
 
     /**
      * Builds the grant of a complimentary order on its shard.
      *
-     * @param order the new complimentary order, with the shard to take the tickets from
-     * @param event the event of the order
-     * @param now   the current instant
-     * @return the transaction with its four items
+     * @param order   the new complimentary order, with the shard to take the tickets from
+     * @param event   the event of the order
+     * @param context the administrator and the idempotency key
+     * @param now     the current instant
+     * @return the transaction with its five items
      */
-    public TransactWriteItemsRequest build(Order order, Event event, Instant now) {
+    public TransactWriteItemsRequest build(Order order, Event event, GrantContext context, Instant now) {
         return TransactWriteItemsRequest.builder()
                 .transactItems(List.of(
                         ReservationTransactionBuilder.checkEventOnSale(properties.eventsTable(), event, now),
                         grantTickets(order),
                         createOrder(order),
-                        auditItemBuilder.put(order.grantChange())))
+                        auditItemBuilder.put(order.grantChange(context.administratorId())),
+                        reservationBuilder.closeKey(order, context.scope(), context.key(), context.lockToken())))
                 .build();
     }
 

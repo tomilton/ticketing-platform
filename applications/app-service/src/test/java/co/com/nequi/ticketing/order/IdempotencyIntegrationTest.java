@@ -9,6 +9,7 @@ import co.com.nequi.ticketing.model.exception.BusinessException;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
 import co.com.nequi.ticketing.model.inventory.EventInventory;
 import co.com.nequi.ticketing.model.inventory.InventoryMovement;
+import co.com.nequi.ticketing.model.order.GrantContext;
 import co.com.nequi.ticketing.model.order.Order;
 import co.com.nequi.ticketing.model.order.OrderId;
 import co.com.nequi.ticketing.model.order.OrderTransition;
@@ -224,8 +225,8 @@ class IdempotencyIntegrationTest {
             }
 
             @Override
-            public Mono<Order> grantComplimentary(Order order, Event event, Instant now) {
-                return orderRepository.grantComplimentary(order, event, now);
+            public Mono<Order> grantComplimentary(Order order, Event event, GrantContext context, Instant now) {
+                return orderRepository.grantComplimentary(order, event, context, now);
             }
 
             @Override

@@ -128,11 +128,12 @@ public class Order {
     /**
      * Audit record of the grant of a complimentary order.
      *
-     * @return the change to {@link OrderStatus#COMPLIMENTARY} caused by the administrator
+     * @param grantedBy the administrator who granted the order
+     * @return the change to {@link OrderStatus#COMPLIMENTARY} caused by the administrator, with its id
      */
-    public OrderStatusChange grantChange() {
+    public OrderStatusChange grantChange(CustomerId grantedBy) {
         return new OrderStatusChange(orderId, null, OrderStatus.COMPLIMENTARY, StatusChangeReason.COMPLIMENTARY_GRANTED,
-                ChangeActor.ADMIN, createdAt);
+                ChangeActor.ADMIN, createdAt, grantedBy.value().toString());
     }
 
     /**

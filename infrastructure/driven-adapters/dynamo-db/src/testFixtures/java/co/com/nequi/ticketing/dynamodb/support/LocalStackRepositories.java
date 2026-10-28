@@ -58,10 +58,12 @@ public final class LocalStackRepositories {
     }
 
     public OrderDynamoRepository orderRepository() {
+        ReservationTransactionBuilder reservationBuilder = new ReservationTransactionBuilder(properties, orderMapper,
+                new IdempotencyEntityMapper(), auditItemBuilder);
         return new OrderDynamoRepository(client, properties, orderMapper,
-                new ReservationTransactionBuilder(properties, orderMapper, new IdempotencyEntityMapper(), auditItemBuilder),
+                reservationBuilder,
                 new TransitionTransactionBuilder(properties, auditItemBuilder), new TransactionFailureTranslator(),
-                new ComplimentaryTransactionBuilder(properties, orderMapper, auditItemBuilder));
+                new ComplimentaryTransactionBuilder(properties, orderMapper, auditItemBuilder, reservationBuilder));
     }
 
     public IdempotencyDynamoRepository idempotencyRepository(Duration lease) {

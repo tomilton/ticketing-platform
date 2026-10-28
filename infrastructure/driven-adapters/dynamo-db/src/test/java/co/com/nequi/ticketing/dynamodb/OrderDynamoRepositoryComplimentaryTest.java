@@ -14,9 +14,13 @@ import co.com.nequi.ticketing.dynamodb.transaction.TransitionTransactionBuilder;
 import co.com.nequi.ticketing.model.enums.BusinessErrorMessage;
 import co.com.nequi.ticketing.model.event.Event;
 import co.com.nequi.ticketing.model.exception.BusinessException;
+import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
+import co.com.nequi.ticketing.model.idempotency.IdempotencyScope;
 import co.com.nequi.ticketing.model.order.ComplimentaryQuantity;
+import co.com.nequi.ticketing.model.order.GrantContext;
 import co.com.nequi.ticketing.model.order.Order;
 import co.com.nequi.ticketing.model.order.OrderId;
+import co.com.nequi.ticketing.model.shared.CustomerId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +44,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 
@@ -55,6 +60,11 @@ import static org.mockito.Mockito.when;
 class OrderDynamoRepositoryComplimentaryTest {
 
     private static final String FAILED = "ConditionalCheckFailed";
+    private static final CustomerId ADMINISTRATOR_ID = new CustomerId(UUID.randomUUID());
+    private static final IdempotencyKey KEY = new IdempotencyKey(UUID.randomUUID());
+    private static final UUID LOCK_TOKEN = UUID.randomUUID();
+    private static final GrantContext CONTEXT = new GrantContext(ADMINISTRATOR_ID,
+            IdempotencyScope.ofAdministrator(ADMINISTRATOR_ID), KEY, LOCK_TOKEN);
 
     @Mock
     private DynamoDbAsyncClient client;
@@ -66,14 +76,16 @@ class OrderDynamoRepositoryComplimentaryTest {
         DynamoDbProperties properties = OrderFixtures.properties(2, Duration.ofSeconds(5));
         OrderEntityMapper orderMapper = Mappers.getMapper(OrderEntityMapper.class);
         AuditItemBuilder auditItemBuilder = new AuditItemBuilder(properties);
+        ReservationTransactionBuilder reservationBuilder = new ReservationTransactionBuilder(properties, orderMapper,
+                new IdempotencyEntityMapper(), auditItemBuilder);
         repository = new OrderDynamoRepository(client, properties, orderMapper,
-                new ReservationTransactionBuilder(properties, orderMapper, new IdempotencyEntityMapper(), auditItemBuilder),
+                reservationBuilder,
                 new TransitionTransactionBuilder(properties, auditItemBuilder), new TransactionFailureTranslator(),
-                new ComplimentaryTransactionBuilder(properties, orderMapper, auditItemBuilder));
+                new ComplimentaryTransactionBuilder(properties, orderMapper, auditItemBuilder, reservationBuilder));
     }
 
     @Test
-    void shouldWriteEventShardOrderAndAuditWhenComplimentaryIsGranted() {
+    void shouldWriteEventShardOrderAuditAndKeyWhenComplimentaryIsGranted() {
         // Given
         Event event = OrderFixtures.event(1);
         Order order = complimentary(event, 3, 0);
@@ -82,11 +94,11 @@ class OrderDynamoRepositoryComplimentaryTest {
                 .thenReturn(CompletableFuture.completedFuture(TransactWriteItemsResponse.builder().build()));
 
         // When / Then
-        StepVerifier.create(repository.grantComplimentary(order, event, NOW))
+        StepVerifier.create(repository.grantComplimentary(order, event, CONTEXT, NOW))
                 .assertNext(granted -> assertThat(granted).usingRecursiveComparison().isEqualTo(order))
                 .verifyComplete();
         List<TransactWriteItem> items = captor.getValue().transactItems();
-        assertThat(items).hasSize(4);
+        assertThat(items).hasSize(5);
         assertThat(items.get(0).conditionCheck().conditionExpression())
                 .isEqualTo("#status = :active AND #date > :nowMillis");
         assertThat(items.get(1).update().updateExpression())
@@ -100,6 +112,7 @@ class OrderDynamoRepositoryComplimentaryTest {
         assertThat(items.get(3).put().item().get("actor").s()).isEqualTo("ADMIN");
         assertThat(items.get(3).put().item().get("reason").s()).isEqualTo("COMPLIMENTARY_GRANTED");
         assertThat(items.get(3).put().item().get("toStatus").s()).isEqualTo("COMPLIMENTARY");
+        assertThat(items.get(3).put().item().get("actorId").s()).isEqualTo(ADMINISTRATOR_ID.value().toString());
     }
 
     @Test
@@ -107,10 +120,10 @@ class OrderDynamoRepositoryComplimentaryTest {
         // Given
         Event event = OrderFixtures.event(3);
         when(client.transactWriteItems(any(TransactWriteItemsRequest.class)))
-                .thenAnswer(invocation -> CompletableFuture.failedFuture(cancellation("None", FAILED, "None", "None")));
+                .thenAnswer(invocation -> CompletableFuture.failedFuture(cancellation("None", FAILED, "None", "None", "None")));
 
         // When / Then
-        StepVerifier.create(repository.grantComplimentary(complimentary(event, 3, 1), event, NOW))
+        StepVerifier.create(repository.grantComplimentary(complimentary(event, 3, 1), event, CONTEXT, NOW))
                 .expectErrorSatisfies(error -> assertBusinessError(error, BusinessErrorMessage.TICKETS_SOLD_OUT))
                 .verify();
         verify(client, times(3)).transactWriteItems(any(TransactWriteItemsRequest.class));
@@ -121,10 +134,10 @@ class OrderDynamoRepositoryComplimentaryTest {
         // Given
         Event event = OrderFixtures.event(3);
         when(client.transactWriteItems(any(TransactWriteItemsRequest.class)))
-                .thenReturn(CompletableFuture.failedFuture(cancellation(FAILED, "None", "None", "None")));
+                .thenReturn(CompletableFuture.failedFuture(cancellation(FAILED, "None", "None", "None", "None")));
 
         // When / Then
-        StepVerifier.create(repository.grantComplimentary(complimentary(event, 3, 0), event, NOW))
+        StepVerifier.create(repository.grantComplimentary(complimentary(event, 3, 0), event, CONTEXT, NOW))
                 .expectErrorSatisfies(error -> assertBusinessError(error, BusinessErrorMessage.EVENT_NOT_ACTIVE))
                 .verify();
         verify(client, times(1)).transactWriteItems(any(TransactWriteItemsRequest.class));
@@ -135,10 +148,10 @@ class OrderDynamoRepositoryComplimentaryTest {
         // Given
         Event event = OrderFixtures.event(1);
         when(client.transactWriteItems(any(TransactWriteItemsRequest.class)))
-                .thenReturn(CompletableFuture.failedFuture(cancellation("None", "None", FAILED, "None")));
+                .thenReturn(CompletableFuture.failedFuture(cancellation("None", "None", FAILED, "None", "None")));
 
         // When / Then
-        StepVerifier.create(repository.grantComplimentary(complimentary(event, 3, 0), event, NOW))
+        StepVerifier.create(repository.grantComplimentary(complimentary(event, 3, 0), event, CONTEXT, NOW))
                 .expectErrorSatisfies(OrderDynamoRepositoryComplimentaryTest::assertDynamoDbError)
                 .verify();
     }

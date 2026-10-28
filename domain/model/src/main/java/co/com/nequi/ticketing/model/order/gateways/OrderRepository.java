@@ -2,6 +2,7 @@ package co.com.nequi.ticketing.model.order.gateways;
 
 import co.com.nequi.ticketing.model.event.Event;
 import co.com.nequi.ticketing.model.inventory.InventoryMovement;
+import co.com.nequi.ticketing.model.order.GrantContext;
 import co.com.nequi.ticketing.model.order.Order;
 import co.com.nequi.ticketing.model.order.OrderId;
 import co.com.nequi.ticketing.model.order.OrderTransition;
@@ -71,17 +72,18 @@ public interface OrderRepository {
 
     /**
      * Stores a complimentary order in a single atomic write: it checks that the event is on sale,
-     * moves the tickets of one shard from available to complimentary and stores the order with its
-     * audit record. It tries the shards in circular order from {@code order.shardId}. The limit of
-     * the customer does not change.
+     * moves the tickets of one shard from available to complimentary, stores the order with its
+     * audit record and closes the idempotency key with the order. It tries the shards in circular
+     * order from {@code order.shardId}. The limit of the customer does not change.
      *
-     * @param order the new complimentary order; its shard is the first one to try
-     * @param event the event of the order
-     * @param now   the current instant
-     * @return the stored order with the shard that served it; it fails with {@code EVENT_NOT_ACTIVE}
-     * or {@code TICKETS_SOLD_OUT}
+     * @param order   the new complimentary order; its shard is the first one to try
+     * @param event   the event of the order
+     * @param context the administrator and the idempotency key
+     * @param now     the current instant
+     * @return the stored order with the shard that served it; it fails with {@code EVENT_NOT_ACTIVE},
+     * {@code TICKETS_SOLD_OUT} or {@code REQUEST_IN_PROGRESS}
      */
-    Mono<Order> grantComplimentary(Order order, Event event, Instant now);
+    Mono<Order> grantComplimentary(Order order, Event event, GrantContext context, Instant now);
 
     /**
      * Finds the active orders whose reservation ended, without reading the orders in a final status.
