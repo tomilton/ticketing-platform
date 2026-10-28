@@ -17,6 +17,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": {
@@ -59,12 +63,12 @@
                 "value": "application/json"
               },
               {
-                "key": "X-Customer-Id",
-                "value": "{{customerId}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{keySale}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": {
@@ -148,8 +152,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "X-Customer-Id",
-                "value": "{{customerId}}"
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": {
@@ -237,6 +241,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": {
@@ -279,12 +287,12 @@
                 "value": "application/json"
               },
               {
-                "key": "X-Customer-Id",
-                "value": "{{customerId}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{keyDecline}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": {
@@ -334,8 +342,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "X-Customer-Id",
-                "value": "{{customerId}}"
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": {
@@ -421,6 +429,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": {
@@ -463,12 +475,12 @@
                 "value": "application/json"
               },
               {
-                "key": "X-Customer-Id",
-                "value": "{{customerId}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{keySoldOut1}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": {
@@ -521,12 +533,12 @@
                 "value": "application/json"
               },
               {
-                "key": "X-Customer-Id",
-                "value": "{{otherCustomerId}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{keySoldOut2}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{otherCustomerToken}}"
               }
             ],
             "url": {
@@ -613,6 +625,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": {
@@ -655,12 +671,12 @@
                 "value": "application/json"
               },
               {
-                "key": "X-Customer-Id",
-                "value": "{{customerId}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{keyRetry}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": {
@@ -714,12 +730,12 @@
                 "value": "application/json"
               },
               {
-                "key": "X-Customer-Id",
-                "value": "{{customerId}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{keyRetry}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": {
@@ -761,12 +777,12 @@
                 "value": "application/json"
               },
               {
-                "key": "X-Customer-Id",
-                "value": "{{customerId}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{keyRetry}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": {
@@ -846,6 +862,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": {
@@ -888,12 +908,12 @@
                 "value": "application/json"
               },
               {
-                "key": "X-Customer-Id",
-                "value": "{{customerId}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{keyExpiry}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": {
@@ -943,8 +963,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "X-Customer-Id",
-                "value": "{{customerId}}"
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": {
@@ -1039,6 +1059,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": {
@@ -1143,6 +1167,14 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
               }
             ],
             "url": {
@@ -1183,8 +1215,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "X-Customer-Id",
-                "value": "{{customerId}}"
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": {
@@ -1287,8 +1319,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "X-Customer-Id",
-                "value": "{{otherCustomerId}}"
+                "key": "Authorization",
+                "value": "Bearer {{otherCustomerToken}}"
               }
             ],
             "url": {
@@ -1414,6 +1446,86 @@
     {
       "key": "orderComplimentary",
       "value": ""
+    },
+    {
+      "key": "customerToken",
+      "value": ""
+    },
+    {
+      "key": "otherCustomerToken",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "limitedCustomerId",
+      "value": ""
+    },
+    {
+      "key": "limitedCustomerToken",
+      "value": ""
+    },
+    {
+      "key": "eventWebhook",
+      "value": ""
+    },
+    {
+      "key": "orderWebhook",
+      "value": ""
+    },
+    {
+      "key": "webhookEventId",
+      "value": ""
+    },
+    {
+      "key": "webhookOccurredAt",
+      "value": ""
+    },
+    {
+      "key": "webhookTimestamp",
+      "value": ""
+    },
+    {
+      "key": "webhookSignature",
+      "value": ""
+    },
+    {
+      "key": "eventSecurity",
+      "value": ""
+    },
+    {
+      "key": "bigPadding",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Development tokens signed with HS256 and jwtSecret, the JWT_LOCAL_SECRET of deployment/.env.example.",
+          "// The API accepts them only in the local profile; deployments verify tokens of the identity provider.",
+          "const base64Url = (words) => CryptoJS.enc.Base64.stringify(words).replace(/=+$/, '').replace(/\\+/g, '-').replace(/\\//g, '_');",
+          "const sign = (claims) => {",
+          "  const header = base64Url(CryptoJS.enc.Utf8.parse(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));",
+          "  const payload = base64Url(CryptoJS.enc.Utf8.parse(JSON.stringify(claims)));",
+          "  return header + '.' + payload + '.' + base64Url(CryptoJS.HmacSHA256(header + '.' + payload, pm.environment.get('jwtSecret')));",
+          "};",
+          "const now = Math.floor(Date.now() / 1000);",
+          "const claims = (subject, admin) => {",
+          "  const base = { iss: pm.environment.get('jwtIssuer'), aud: pm.environment.get('jwtAudience'), sub: subject, iat: now, exp: now + 3600 };",
+          "  if (admin) { base[pm.environment.get('rolesClaim')] = [pm.environment.get('adminRole')]; }",
+          "  return base;",
+          "};",
+          "pm.collectionVariables.set('customerToken', sign(claims(pm.environment.get('customerId'), false)));",
+          "pm.collectionVariables.set('otherCustomerToken', sign(claims(pm.environment.get('otherCustomerId'), false)));",
+          "pm.collectionVariables.set('adminToken', sign(claims(pm.environment.get('adminId'), true)));",
+          "pm.collectionVariables.set('limitedCustomerToken', sign(claims(pm.collectionVariables.get('limitedCustomerId') || pm.environment.get('customerId'), false)));"
+        ]
+      }
     }
   ]
 }
