@@ -152,4 +152,11 @@ run "protects_every_route_when_jwt_is_enabled" {
     condition     = length(aws_apigatewayv2_authorizer.jwt) == 1 && alltrue([for route in aws_apigatewayv2_route.this : route.authorization_type == "JWT"])
     error_message = "With JWT every route must use the authorizer."
   }
+
+  assert {
+    condition = toset([for route in aws_apigatewayv2_route.public : route.route_key]) == toset([
+      "GET /api/v1/events", "GET /api/v1/events/{proxy+}", "POST /api/v1/webhooks/payments"
+    ]) && alltrue([for route in aws_apigatewayv2_route.public : route.authorization_type == "NONE"])
+    error_message = "The catalog, the availability and the signed webhook must stay public."
+  }
 }

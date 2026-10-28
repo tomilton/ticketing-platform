@@ -24,7 +24,7 @@ scaling = {
 edge = {
   throttling            = { rate = 2000, burst = 4000, orders_rate = 500, orders_burst = 1000 }
   waf_rate_limit_per_ip = 2000
-  jwt                   = { enabled = false, issuer = "", audience = [] }
+  jwt                   = { enabled = true, issuer = "https://auth.example.com", audience = ["ticketing-platform"] }
   certificate_arn       = null
   aliases               = []
   price_class           = "PriceClass_All"
