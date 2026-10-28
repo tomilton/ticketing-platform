@@ -132,6 +132,16 @@ variable "queue" {
   })
 }
 
+variable "payment_queue" {
+  description = "Queue of the notices of the payment gateway and its dead letter queue."
+  type = object({
+    name                   = string
+    arn                    = string
+    dead_letter_queue_name = string
+    dead_letter_queue_arn  = string
+  })
+}
+
 variable "kms_key_arns" {
   description = "Keys of the tables and the queues the tasks use."
   type        = list(string)

@@ -60,11 +60,14 @@ adapters:
     sender:
       region: us-east-1
       order-placed-queue: order-placed
+      payment-confirmed-queue: payment-confirmed
       send-timeout: 2s
     listener:
       region: us-east-1
       order-placed-queue: order-placed
       order-placed-dlq: order-placed-dlq
+      payment-confirmed-queue: payment-confirmed
+      payment-confirmed-dlq: payment-confirmed-dlq
       wait-time: 1s
       max-messages: 10
       max-concurrency: 4

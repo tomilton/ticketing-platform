@@ -69,6 +69,19 @@ module "messaging" {
   kms_deletion_window_days   = var.kms_deletion_window_days
 }
 
+module "payment_messaging" {
+  source = "../messaging"
+
+  name                       = "${local.name}-payment"
+  queue_name                 = "${local.name}-payment-confirmed"
+  dead_letter_queue_name     = "${local.name}-payment-confirmed-dlq"
+  visibility_timeout_seconds = local.visibility_timeout
+  max_receive_count          = local.max_receive_count
+  producer_role_arns         = [module.api.task_role_arn]
+  consumer_role_arns         = [module.worker.task_role_arn]
+  kms_deletion_window_days   = var.kms_deletion_window_days
+}
+
 module "cluster" {
   source = "../ecs-cluster"
 

@@ -92,6 +92,8 @@ locals {
     DYNAMODB_PENDING_PUBLICATION_INDEX     = var.index_names.pending_publication
     SQS_ORDER_PLACED_QUEUE                 = var.queue.name
     SQS_ORDER_PLACED_DLQ                   = var.queue.dead_letter_queue_name
+    SQS_PAYMENT_CONFIRMED_QUEUE            = var.payment_queue.name
+    SQS_PAYMENT_CONFIRMED_DLQ              = var.payment_queue.dead_letter_queue_name
   }
 
   environment = [
