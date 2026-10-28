@@ -9,8 +9,10 @@ import co.com.nequi.ticketing.api.order.mapper.OrderMapManagement;
 import co.com.nequi.ticketing.api.order.mapper.OrderMapperImpl;
 import co.com.nequi.ticketing.api.support.AuthenticatedClientConfig;
 import co.com.nequi.ticketing.api.support.SecurityTestConfig;
+import co.com.nequi.ticketing.api.support.TestTokens;
 import co.com.nequi.ticketing.api.validation.BeanValidator;
 import co.com.nequi.ticketing.model.enums.BusinessErrorMessage;
+import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
 import co.com.nequi.ticketing.model.order.ComplimentaryQuantity;
 import co.com.nequi.ticketing.model.order.Order;
 import co.com.nequi.ticketing.model.order.OrderId;
@@ -47,8 +49,10 @@ class ComplimentaryRouteIntegrationTest {
     private static final String CUSTOMER = "11111111-1111-4111-8111-111111111111";
     private static final String EVENT = "b2c4e6f8-1a3b-4c5d-8e9f-0a1b2c3d4e5f";
     private static final String PATH = "/api/v1/events/" + EVENT + "/complimentary";
+    private static final String KEY = "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
     private static final GrantComplimentaryCommand COMMAND = new GrantComplimentaryCommand(
-            new EventId(UUID.fromString(EVENT)), new CustomerId(UUID.fromString(CUSTOMER)), new ComplimentaryQuantity(3));
+            new EventId(UUID.fromString(EVENT)), new CustomerId(UUID.fromString(CUSTOMER)), new ComplimentaryQuantity(3),
+            new CustomerId(TestTokens.CUSTOMER), new IdempotencyKey(UUID.fromString(KEY)));
 
     @Autowired
     private WebTestClient webTestClient;
@@ -107,7 +111,25 @@ class ComplimentaryRouteIntegrationTest {
     @Test
     void shouldRejectWithEmptyBodyErrorWhenBodyIsMissing() {
         // When / Then
-        assertError(webTestClient.post().uri(PATH).contentType(MediaType.APPLICATION_JSON).exchange(), 400, "TKT0003");
+        assertError(webTestClient.post().uri(PATH).header("Idempotency-Key", KEY).contentType(MediaType.APPLICATION_JSON)
+                .exchange(), 400, "TKT0003");
+        verifyNoInteractions(grantComplimentaryUseCase);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "abc"})
+    void shouldRejectWithMissingKeyErrorWhenIdempotencyKeyIsInvalid(String key) {
+        // When / Then
+        assertError(webTestClient.post().uri(PATH).header("Idempotency-Key", key).contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body(CUSTOMER, "3")).exchange(), 400, "TKT0004");
+        verifyNoInteractions(grantComplimentaryUseCase);
+    }
+
+    @Test
+    void shouldRejectWithMissingKeyErrorWhenIdempotencyKeyIsMissing() {
+        // When / Then
+        assertError(webTestClient.post().uri(PATH).contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body(CUSTOMER, "3")).exchange(), 400, "TKT0004");
         verifyNoInteractions(grantComplimentaryUseCase);
     }
 
@@ -115,7 +137,9 @@ class ComplimentaryRouteIntegrationTest {
     @CsvSource({
             "EVENT_NOT_FOUND, 404, TKB0001",
             "TICKETS_SOLD_OUT, 409, TKB0003",
-            "EVENT_NOT_ACTIVE, 409, TKB0007"})
+            "EVENT_NOT_ACTIVE, 409, TKB0007",
+            "IDEMPOTENCY_KEY_REUSED, 422, TKB0005",
+            "REQUEST_IN_PROGRESS, 409, TKB0006"})
     void shouldAnswerRejectionWithItsStatusAndCodeWhenUseCaseRejects(BusinessErrorMessage rejection, Integer status,
                                                                      String code) {
         // Given
@@ -126,7 +150,8 @@ class ComplimentaryRouteIntegrationTest {
     }
 
     private WebTestClient.ResponseSpec post(String path, String body) {
-        return webTestClient.post().uri(path).contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange();
+        return webTestClient.post().uri(path).header("Idempotency-Key", KEY).contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body).exchange();
     }
 
     private static String body(String customer, String quantity) {

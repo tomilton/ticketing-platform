@@ -74,6 +74,7 @@ class ErrorCatalogRouteTest {
 
     private static final String EVENTS = "/api/v1/events";
     private static final String KNOWN_ID = "3f1c2a7e-1d2b-4c5d-9e8f-0a1b2c3d4e5f";
+    private static final String IDEMPOTENCY_KEY = "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
     private static final String CODE_PATTERN = "^TK[BT]\\d{4}$";
     private static final String VALID_BODY =
             "{\"name\":\"Rock\",\"venue\":{\"name\":\"Arena\",\"city\":\"Bogota\"},\"date\":\"2020-01-01T00:00:00Z\",\"capacity\":1}";
@@ -114,6 +115,7 @@ class ErrorCatalogRouteTest {
         // Given
         stub.accept(this);
         WebTestClient.RequestBodySpec request = webTestClient.method(method).uri(uri)
+                .header("Idempotency-Key", IDEMPOTENCY_KEY)
                 .contentType(MediaType.APPLICATION_JSON);
 
         // When

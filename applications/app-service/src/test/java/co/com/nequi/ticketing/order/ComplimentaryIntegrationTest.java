@@ -125,7 +125,8 @@ class ComplimentaryIntegrationTest {
                 .flatMap(event -> placeOrder.place(new PlaceOrderCommand(customerId,
                                 new IdempotencyKey(UUID.randomUUID()), event.getEventId(), new Quantity(6)))
                         .then(useCase.grant(new GrantComplimentaryCommand(event.getEventId(), customerId,
-                                new ComplimentaryQuantity(2)))));
+                                new ComplimentaryQuantity(2), new CustomerId(UUID.randomUUID()),
+                                new IdempotencyKey(UUID.randomUUID())))));
 
         // Then
         StepVerifier.create(granted)
@@ -163,7 +164,7 @@ class ComplimentaryIntegrationTest {
 
     private static Mono<Order> grant(Event event, Integer quantity) {
         return useCase.grant(new GrantComplimentaryCommand(event.getEventId(), new CustomerId(UUID.randomUUID()),
-                new ComplimentaryQuantity(quantity)));
+                new ComplimentaryQuantity(quantity), new CustomerId(UUID.randomUUID()), new IdempotencyKey(UUID.randomUUID())));
     }
 
     private static Mono<EventInventory> inventory(Event event) {

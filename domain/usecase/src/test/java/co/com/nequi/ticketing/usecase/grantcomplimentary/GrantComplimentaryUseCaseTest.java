@@ -8,6 +8,7 @@ import co.com.nequi.ticketing.model.event.Event;
 import co.com.nequi.ticketing.model.event.Venue;
 import co.com.nequi.ticketing.model.event.gateways.EventRepository;
 import co.com.nequi.ticketing.model.exception.BusinessException;
+import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
 import co.com.nequi.ticketing.model.order.ComplimentaryQuantity;
 import co.com.nequi.ticketing.model.order.Order;
 import co.com.nequi.ticketing.model.order.command.GrantComplimentaryCommand;
@@ -133,7 +134,8 @@ class GrantComplimentaryUseCaseTest {
     }
 
     private static GrantComplimentaryCommand command(Integer quantity) {
-        return new GrantComplimentaryCommand(EVENT.getEventId(), CUSTOMER_ID, new ComplimentaryQuantity(quantity));
+        return new GrantComplimentaryCommand(EVENT.getEventId(), CUSTOMER_ID, new ComplimentaryQuantity(quantity),
+                new CustomerId(UUID.randomUUID()), new IdempotencyKey(UUID.randomUUID()));
     }
 
     private static void assertBusinessError(Throwable error, BusinessErrorMessage expected) {
