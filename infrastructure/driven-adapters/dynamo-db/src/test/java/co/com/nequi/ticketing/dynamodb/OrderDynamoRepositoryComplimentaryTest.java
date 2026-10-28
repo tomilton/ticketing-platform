@@ -113,6 +113,27 @@ class OrderDynamoRepositoryComplimentaryTest {
         assertThat(items.get(3).put().item().get("reason").s()).isEqualTo("COMPLIMENTARY_GRANTED");
         assertThat(items.get(3).put().item().get("toStatus").s()).isEqualTo("COMPLIMENTARY");
         assertThat(items.get(3).put().item().get("actorId").s()).isEqualTo(ADMINISTRATOR_ID.value().toString());
+        assertThat(items.get(4).update().key().get("idempotencyId").s())
+                .isEqualTo("ADMIN#" + ADMINISTRATOR_ID.value() + "#" + KEY.value());
+        assertThat(items.get(4).update().conditionExpression()).isEqualTo("#status = :inProgress AND lockToken = :token");
+        assertThat(items.get(4).update().expressionAttributeValues())
+                .containsEntry(":token", AttributeValue.fromS(LOCK_TOKEN.toString()))
+                .containsEntry(":orderId", AttributeValue.fromS(order.getOrderId().value().toString()))
+                .containsEntry(":orderStatus", AttributeValue.fromS("COMPLIMENTARY"));
+    }
+
+    @Test
+    void shouldFailWithRequestInProgressWhenKeyIsNoLongerHeld() {
+        // Given
+        Event event = OrderFixtures.event(3);
+        when(client.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenReturn(CompletableFuture.failedFuture(cancellation("None", "None", "None", "None", FAILED)));
+
+        // When / Then
+        StepVerifier.create(repository.grantComplimentary(complimentary(event, 3, 0), event, CONTEXT, NOW))
+                .expectErrorSatisfies(error -> assertBusinessError(error, BusinessErrorMessage.REQUEST_IN_PROGRESS))
+                .verify();
+        verify(client, times(1)).transactWriteItems(any(TransactWriteItemsRequest.class));
     }
 
     @Test

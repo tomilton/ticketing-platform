@@ -3,6 +3,7 @@ package co.com.nequi.ticketing.usecase.grantcomplimentary;
 import co.com.nequi.ticketing.model.config.ComplimentarySettings;
 import co.com.nequi.ticketing.model.enums.BusinessErrorMessage;
 import co.com.nequi.ticketing.model.enums.EventStatus;
+import co.com.nequi.ticketing.model.enums.IdempotencyStatus;
 import co.com.nequi.ticketing.model.enums.OrderStatus;
 import co.com.nequi.ticketing.model.event.Event;
 import co.com.nequi.ticketing.model.event.Venue;
@@ -10,12 +11,14 @@ import co.com.nequi.ticketing.model.event.gateways.EventRepository;
 import co.com.nequi.ticketing.model.exception.BusinessException;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyClaim;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
+import co.com.nequi.ticketing.model.idempotency.IdempotencyRecord;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyScope;
 import co.com.nequi.ticketing.model.idempotency.RequestFingerprint;
 import co.com.nequi.ticketing.model.idempotency.gateways.IdempotencyRepository;
 import co.com.nequi.ticketing.model.order.ComplimentaryQuantity;
 import co.com.nequi.ticketing.model.order.GrantContext;
 import co.com.nequi.ticketing.model.order.Order;
+import co.com.nequi.ticketing.model.order.OrderId;
 import co.com.nequi.ticketing.model.order.PlacementOutcome;
 import co.com.nequi.ticketing.model.order.command.GrantComplimentaryCommand;
 import co.com.nequi.ticketing.model.order.gateways.OrderRepository;
@@ -24,6 +27,8 @@ import co.com.nequi.ticketing.model.shared.CustomerId;
 import co.com.nequi.ticketing.model.shared.EventId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -38,6 +43,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -156,9 +162,116 @@ class GrantComplimentaryUseCaseTest {
                 .verify();
     }
 
+    @Test
+    void shouldPropagateRequestInProgressWithoutSettlingKeyWhenGrantLostTheLock() {
+        // Given
+        claimGranted(3);
+        when(eventRepository.findById(EVENT.getEventId())).thenReturn(Mono.just(EVENT));
+        when(orderRepository.grantComplimentary(any(Order.class), eq(EVENT), eq(CONTEXT), eq(NOW)))
+                .thenReturn(Mono.error(BusinessErrorMessage.REQUEST_IN_PROGRESS.build()));
+
+        // When / Then
+        StepVerifier.create(useCase(50).grant(command(3)))
+                .expectErrorSatisfies(error -> assertBusinessError(error, BusinessErrorMessage.REQUEST_IN_PROGRESS))
+                .verify();
+        verify(idempotencyRepository, never()).complete(any(), any(), any(), any());
+        verify(idempotencyRepository, never()).release(any(), any(), any());
+    }
+
+    @Test
+    void shouldReleaseKeyAndPropagateErrorWhenGrantFailsTechnically() {
+        // Given
+        IllegalStateException failure = new IllegalStateException("store unavailable");
+        claimGranted(3);
+        when(eventRepository.findById(EVENT.getEventId())).thenReturn(Mono.just(EVENT));
+        when(orderRepository.grantComplimentary(any(Order.class), eq(EVENT), eq(CONTEXT), eq(NOW)))
+                .thenReturn(Mono.error(failure));
+        when(idempotencyRepository.release(SCOPE, KEY, LOCK_TOKEN)).thenReturn(Mono.empty());
+
+        // When / Then
+        StepVerifier.create(useCase(50).grant(command(3)))
+                .expectErrorMatches(error -> error == failure)
+                .verify();
+    }
+
+    @Test
+    void shouldReturnStoredOrderWithoutGrantingWhenSameGrantIsRepeated() {
+        // Given
+        Order stored = Order.grantComplimentary(OrderId.newId(), CUSTOMER_ID, EVENT.getEventId(),
+                new ComplimentaryQuantity(3), 0, NOW);
+        claimExisting(3, IdempotencyStatus.COMPLETED, PlacementOutcome.Accepted.of(stored));
+        when(orderRepository.findById(stored.getOrderId())).thenReturn(Mono.just(stored));
+
+        // When / Then
+        StepVerifier.create(useCase(50).grant(command(3)))
+                .expectNext(stored)
+                .verifyComplete();
+        verifyNoInteractions(eventRepository);
+        verify(orderRepository, never()).grantComplimentary(any(), any(), any(), any());
+    }
+
+    @Test
+    void shouldFailWithOrderNotFoundWhenStoredOrderIsMissing() {
+        // Given
+        PlacementOutcome.Accepted accepted = new PlacementOutcome.Accepted(OrderId.newId(), OrderStatus.COMPLIMENTARY, NOW);
+        claimExisting(3, IdempotencyStatus.COMPLETED, accepted);
+        when(orderRepository.findById(accepted.orderId())).thenReturn(Mono.empty());
+
+        // When / Then
+        StepVerifier.create(useCase(50).grant(command(3)))
+                .expectErrorSatisfies(error -> assertBusinessError(error, BusinessErrorMessage.ORDER_NOT_FOUND))
+                .verify();
+    }
+
+    @Test
+    void shouldFailWithStoredErrorWhenRepeatedGrantWasRejected() {
+        // Given
+        claimExisting(3, IdempotencyStatus.COMPLETED, new PlacementOutcome.Rejected(BusinessErrorMessage.TICKETS_SOLD_OUT));
+
+        // When / Then
+        StepVerifier.create(useCase(50).grant(command(3)))
+                .expectErrorSatisfies(error -> assertBusinessError(error, BusinessErrorMessage.TICKETS_SOLD_OUT))
+                .verify();
+        verifyNoInteractions(eventRepository);
+    }
+
+    @ParameterizedTest
+    @EnumSource(IdempotencyStatus.class)
+    void shouldFailWithKeyReusedWhenBodyIsDifferent(IdempotencyStatus status) {
+        // Given
+        IdempotencyRecord stored = new IdempotencyRecord(SCOPE, KEY, fingerprint(4), status, UUID.randomUUID(),
+                NOW.plusSeconds(10), null);
+        when(idempotencyRepository.claim(SCOPE, KEY, fingerprint(3), NOW))
+                .thenReturn(Mono.just(new IdempotencyClaim.Existing(stored)));
+
+        // When / Then
+        StepVerifier.create(useCase(50).grant(command(3)))
+                .expectErrorSatisfies(error -> assertBusinessError(error, BusinessErrorMessage.IDEMPOTENCY_KEY_REUSED))
+                .verify();
+    }
+
+    @Test
+    void shouldFailWithRequestInProgressWhenKeyIsHeldByAnotherGrant() {
+        // Given
+        claimExisting(3, IdempotencyStatus.IN_PROGRESS, null);
+
+        // When / Then
+        StepVerifier.create(useCase(50).grant(command(3)))
+                .expectErrorSatisfies(error -> assertBusinessError(error, BusinessErrorMessage.REQUEST_IN_PROGRESS))
+                .verify();
+        verifyNoInteractions(eventRepository);
+    }
+
     private void claimGranted(Integer quantity) {
         when(idempotencyRepository.claim(SCOPE, KEY, fingerprint(quantity), NOW))
                 .thenReturn(Mono.just(new IdempotencyClaim.Granted(LOCK_TOKEN)));
+    }
+
+    private void claimExisting(Integer quantity, IdempotencyStatus status, PlacementOutcome outcome) {
+        IdempotencyRecord stored = new IdempotencyRecord(SCOPE, KEY, fingerprint(quantity), status, UUID.randomUUID(),
+                NOW.plusSeconds(10), outcome);
+        when(idempotencyRepository.claim(SCOPE, KEY, fingerprint(quantity), NOW))
+                .thenReturn(Mono.just(new IdempotencyClaim.Existing(stored)));
     }
 
     private void storeRejection(BusinessErrorMessage rejection) {
