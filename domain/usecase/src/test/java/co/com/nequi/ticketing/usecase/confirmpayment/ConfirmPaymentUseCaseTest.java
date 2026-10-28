@@ -17,6 +17,8 @@ import co.com.nequi.ticketing.model.shared.CustomerId;
 import co.com.nequi.ticketing.model.shared.EventId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
@@ -97,6 +99,60 @@ class ConfirmPaymentUseCaseTest {
                 .verifyComplete();
         verify(orderRepository, never()).apply(any(), any());
         verifyNoInteractions(paymentGateway);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = OrderStatus.class, names = {"EXPIRED", "CANCELLED"})
+    void shouldRefundWithoutChangesWhenApprovedNoticeArrivesForReleasedOrder(OrderStatus status) {
+        // Given
+        givenStored(withStatus(status));
+        when(paymentGateway.refund(RESERVED.getOrderId())).thenReturn(Mono.empty());
+
+        // When / Then
+        StepVerifier.create(useCase(CREATED_AT.plusSeconds(60)).confirm(notice(PaymentResult.APPROVED)))
+                .expectNext(ProcessingOutcome.IGNORED)
+                .verifyComplete();
+        verify(orderRepository, never()).apply(any(), any());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = OrderStatus.class, names = {"EXPIRED", "CANCELLED", "SOLD"})
+    void shouldIgnoreWithoutRefundWhenDeclinedNoticeArrivesForFinalOrder(OrderStatus status) {
+        // Given
+        givenStored(withStatus(status));
+
+        // When / Then
+        StepVerifier.create(useCase(CREATED_AT.plusSeconds(60)).confirm(notice(PaymentResult.DECLINED)))
+                .expectNext(ProcessingOutcome.IGNORED)
+                .verifyComplete();
+        verifyNoInteractions(paymentGateway);
+    }
+
+    @Test
+    void shouldIgnoreWhenApprovedNoticeArrivesForSoldOrder() {
+        // Given
+        givenStored(withStatus(OrderStatus.SOLD));
+
+        // When / Then
+        StepVerifier.create(useCase(CREATED_AT.plusSeconds(60)).confirm(notice(PaymentResult.APPROVED)))
+                .expectNext(ProcessingOutcome.IGNORED)
+                .verifyComplete();
+        verifyNoInteractions(paymentGateway);
+    }
+
+    @Test
+    void shouldEvaluateAgainFromFreshReadWhenAnotherPathChangedTheOrder() {
+        // Given
+        when(orderRepository.findById(RESERVED.getOrderId()))
+                .thenReturn(Mono.just(withStatus(OrderStatus.PENDING_CONFIRMATION)))
+                .thenReturn(Mono.just(withStatus(OrderStatus.SOLD)));
+        when(orderRepository.apply(any(OrderTransition.class), eq(InventoryMovement.RELEASE)))
+                .thenReturn(Mono.error(BusinessErrorMessage.INVALID_STATE_TRANSITION.build()));
+
+        // When / Then
+        StepVerifier.create(useCase(CREATED_AT.plusSeconds(60)).confirm(notice(PaymentResult.DECLINED)))
+                .expectNext(ProcessingOutcome.IGNORED)
+                .verifyComplete();
     }
 
     @Test
