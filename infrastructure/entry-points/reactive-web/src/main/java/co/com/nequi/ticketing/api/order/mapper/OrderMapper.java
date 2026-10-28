@@ -31,9 +31,10 @@ public interface OrderMapper {
         return new PlaceOrderCommand(customerId, key, new EventId(request.eventId()), new Quantity(request.quantity()));
     }
 
-    default GrantComplimentaryCommand toCommand(EventId eventId, GrantComplimentaryRequestDto request) {
+    default GrantComplimentaryCommand toCommand(EventId eventId, CustomerId administratorId, IdempotencyKey key,
+                                                GrantComplimentaryRequestDto request) {
         return new GrantComplimentaryCommand(eventId, new CustomerId(request.customerId()),
-                new ComplimentaryQuantity(request.quantity()));
+                new ComplimentaryQuantity(request.quantity()), administratorId, key);
     }
 
     /**

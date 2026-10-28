@@ -12,6 +12,8 @@ ext {
     testcontainersVersion = providers.gradleProperty('testcontainersVersion').get()
     blockhoundVersion = providers.gradleProperty('blockhoundVersion').get()
     lombokMapstructBindingVersion = providers.gradleProperty('lombokMapstructBindingVersion').get()
+    resilience4jVersion = providers.gradleProperty('resilience4jVersion').get()
+    caffeineVersion = providers.gradleProperty('caffeineVersion').get()
 }
 
 allprojects {

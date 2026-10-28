@@ -18,7 +18,7 @@ class IdempotencyClaimTest {
     void shouldKeepTokenOrRecordWhenClaimIsCreated() {
         // Given
         UUID token = UUID.randomUUID();
-        IdempotencyRecord stored = new IdempotencyRecord(new CustomerId(UUID.randomUUID()),
+        IdempotencyRecord stored = new IdempotencyRecord(IdempotencyScope.ofCustomer(new CustomerId(UUID.randomUUID())),
                 new IdempotencyKey(UUID.randomUUID()), RequestFingerprint.of(EventId.newId(), new Quantity(1)),
                 IdempotencyStatus.IN_PROGRESS, token, Instant.parse("2026-10-27T10:00:00Z"), null);
 

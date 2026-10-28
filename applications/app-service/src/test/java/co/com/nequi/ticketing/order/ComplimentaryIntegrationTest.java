@@ -29,9 +29,12 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,12 +42,14 @@ import static org.mockito.Mockito.mock;
 
 /**
  * SC-004 of feature 003: a grant moves exactly its quantity from available to complimentary, never
- * leaves negative available tickets and creates a final order that the sweep never touches.
+ * leaves negative available tickets and creates a final order that the sweep never touches. FR-009
+ * and FR-010 of feature 004: a repeated grant is applied once and the audit keeps the administrator.
  */
 class ComplimentaryIntegrationTest {
 
     private static final Duration TEST_TIMEOUT = Duration.ofMinutes(1);
     private static final ClockProvider CLOCK = Clock.systemUTC()::instant;
+    private static final CustomerId ADMINISTRATOR_ID = new CustomerId(UUID.randomUUID());
 
     private static LocalStackRepositories repositories;
     private static GrantComplimentaryUseCase useCase;
@@ -52,8 +57,8 @@ class ComplimentaryIntegrationTest {
     @BeforeAll
     static void setUp() {
         repositories = new LocalStackRepositories();
-        useCase = new GrantComplimentaryUseCase(repositories.eventRepository(), repositories.orderRepository(), CLOCK,
-                new ComplimentarySettings(50));
+        useCase = new GrantComplimentaryUseCase(repositories.idempotencyRepository(Duration.ofSeconds(10)),
+                repositories.eventRepository(), repositories.orderRepository(), CLOCK, new ComplimentarySettings(50));
     }
 
     @Test
@@ -125,7 +130,7 @@ class ComplimentaryIntegrationTest {
                 .flatMap(event -> placeOrder.place(new PlaceOrderCommand(customerId,
                                 new IdempotencyKey(UUID.randomUUID()), event.getEventId(), new Quantity(6)))
                         .then(useCase.grant(new GrantComplimentaryCommand(event.getEventId(), customerId,
-                                new ComplimentaryQuantity(2)))));
+                                new ComplimentaryQuantity(2), ADMINISTRATOR_ID, new IdempotencyKey(UUID.randomUUID())))));
 
         // Then
         StepVerifier.create(granted)
@@ -161,9 +166,63 @@ class ComplimentaryIntegrationTest {
                 .verify(TEST_TIMEOUT);
     }
 
+    @Test
+    void shouldGrantOnceAndAuditAdministratorWhenSameGrantIsRepeated() {
+        // Given
+        CustomerId customerId = new CustomerId(UUID.randomUUID());
+        IdempotencyKey key = new IdempotencyKey(UUID.randomUUID());
+
+        // When
+        Mono<String> repeated = repositories.createEvent(10, 1).flatMap(event -> useCase.grant(
+                        command(event, customerId, 3, key))
+                .flatMap(first -> useCase.grant(command(event, customerId, 3, key))
+                        .zipWith(inventory(event), (second, inventory) -> second.getOrderId().equals(first.getOrderId())
+                                + "/" + inventory.complimentary())
+                        .zipWith(auditActorId(first), (result, actorId) -> result + "/" + actorId)));
+
+        // Then
+        StepVerifier.create(repeated)
+                .expectNext("true/3/" + ADMINISTRATOR_ID.value())
+                .expectComplete()
+                .verify(TEST_TIMEOUT);
+    }
+
+    @Test
+    void shouldRejectWithKeyReusedWhenSameKeyComesWithAnotherBody() {
+        // Given
+        IdempotencyKey key = new IdempotencyKey(UUID.randomUUID());
+
+        // When
+        Mono<Order> reused = repositories.createEvent(10, 1).flatMap(event -> useCase.grant(
+                        command(event, new CustomerId(UUID.randomUUID()), 3, key))
+                .then(useCase.grant(command(event, new CustomerId(UUID.randomUUID()), 3, key))));
+
+        // Then
+        StepVerifier.create(reused)
+                .expectErrorSatisfies(error -> assertThat(((BusinessException) error).getBusinessErrorMessage())
+                        .isEqualTo(BusinessErrorMessage.IDEMPOTENCY_KEY_REUSED))
+                .verify(TEST_TIMEOUT);
+    }
+
     private static Mono<Order> grant(Event event, Integer quantity) {
-        return useCase.grant(new GrantComplimentaryCommand(event.getEventId(), new CustomerId(UUID.randomUUID()),
-                new ComplimentaryQuantity(quantity)));
+        return useCase.grant(command(event, new CustomerId(UUID.randomUUID()), quantity,
+                new IdempotencyKey(UUID.randomUUID())));
+    }
+
+    private static GrantComplimentaryCommand command(Event event, CustomerId customerId, Integer quantity,
+                                                     IdempotencyKey key) {
+        return new GrantComplimentaryCommand(event.getEventId(), customerId, new ComplimentaryQuantity(quantity),
+                ADMINISTRATOR_ID, key);
+    }
+
+    private static Mono<String> auditActorId(Order order) {
+        return Mono.fromFuture(() -> repositories.client().query(QueryRequest.builder()
+                        .tableName(LocalStackTestSupport.ORDER_AUDIT_TABLE)
+                        .keyConditionExpression("orderId = :orderId")
+                        .expressionAttributeValues(Map.of(":orderId",
+                                AttributeValue.fromS(order.getOrderId().value().toString())))
+                        .build()))
+                .map(response -> response.items().getFirst().get("actorId").s());
     }
 
     private static Mono<EventInventory> inventory(Event event) {

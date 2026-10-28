@@ -104,12 +104,12 @@ variable "log_retention_days" {
 }
 
 variable "table_names" {
-  description = "Names of the seven tables, by logical name."
+  description = "Names of the eight tables, by logical name."
   type        = map(string)
 }
 
 variable "table_arns" {
-  description = "ARNs of the seven tables, by logical name."
+  description = "ARNs of the eight tables, by logical name."
   type        = map(string)
 }
 
@@ -130,6 +130,26 @@ variable "queue" {
     dead_letter_queue_name = string
     dead_letter_queue_arn  = string
   })
+}
+
+variable "payment_queue" {
+  description = "Queue of the notices of the payment gateway and its dead letter queue."
+  type = object({
+    name                   = string
+    arn                    = string
+    dead_letter_queue_name = string
+    dead_letter_queue_arn  = string
+  })
+}
+
+variable "secrets" {
+  description = "Secrets Manager ARNs injected as environment variables, by variable name; see environment.tf."
+  type        = map(string)
+
+  validation {
+    condition     = toset(keys(var.secrets)) == toset(local.secret_names)
+    error_message = "The secrets must be exactly the secret variables of the application, see local.secret_names."
+  }
 }
 
 variable "kms_key_arns" {

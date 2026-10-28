@@ -1,5 +1,6 @@
 package co.com.nequi.ticketing.model.order.command;
 
+import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
 import co.com.nequi.ticketing.model.order.ComplimentaryQuantity;
 import co.com.nequi.ticketing.model.shared.CustomerId;
 import co.com.nequi.ticketing.model.shared.EventId;
@@ -15,11 +16,14 @@ class GrantComplimentaryCommandTest {
     private static final EventId EVENT_ID = EventId.newId();
     private static final CustomerId CUSTOMER_ID = new CustomerId(UUID.randomUUID());
     private static final ComplimentaryQuantity QUANTITY = new ComplimentaryQuantity(3);
+    private static final CustomerId ADMINISTRATOR_ID = new CustomerId(UUID.randomUUID());
+    private static final IdempotencyKey KEY = new IdempotencyKey(UUID.randomUUID());
 
     @Test
     void shouldKeepValuesWhenComponentsAreValid() {
         // When
-        GrantComplimentaryCommand command = new GrantComplimentaryCommand(EVENT_ID, CUSTOMER_ID, QUANTITY);
+        GrantComplimentaryCommand command = new GrantComplimentaryCommand(EVENT_ID, CUSTOMER_ID, QUANTITY,
+                ADMINISTRATOR_ID, KEY);
 
         // Then
         assertThat(command.quantity()).isEqualTo(new ComplimentaryQuantity(3));
@@ -28,11 +32,15 @@ class GrantComplimentaryCommandTest {
     @Test
     void shouldThrowNullPointerExceptionWhenComponentIsNull() {
         // When / Then
-        assertThatThrownBy(() -> new GrantComplimentaryCommand(null, CUSTOMER_ID, QUANTITY))
+        assertThatThrownBy(() -> new GrantComplimentaryCommand(null, CUSTOMER_ID, QUANTITY, ADMINISTRATOR_ID, KEY))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new GrantComplimentaryCommand(EVENT_ID, null, QUANTITY))
+        assertThatThrownBy(() -> new GrantComplimentaryCommand(EVENT_ID, null, QUANTITY, ADMINISTRATOR_ID, KEY))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new GrantComplimentaryCommand(EVENT_ID, CUSTOMER_ID, null))
+        assertThatThrownBy(() -> new GrantComplimentaryCommand(EVENT_ID, CUSTOMER_ID, null, ADMINISTRATOR_ID, KEY))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new GrantComplimentaryCommand(EVENT_ID, CUSTOMER_ID, QUANTITY, null, KEY))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new GrantComplimentaryCommand(EVENT_ID, CUSTOMER_ID, QUANTITY, ADMINISTRATOR_ID, null))
                 .isInstanceOf(NullPointerException.class);
     }
 }

@@ -10,6 +10,7 @@ import co.com.nequi.ticketing.model.order.Quantity;
 import co.com.nequi.ticketing.model.order.Ticket;
 import co.com.nequi.ticketing.model.order.gateways.OrderRepository;
 import co.com.nequi.ticketing.model.order.request.GetOrderQuery;
+import co.com.nequi.ticketing.model.shared.AuthenticatedUser;
 import co.com.nequi.ticketing.model.shared.CustomerId;
 import co.com.nequi.ticketing.model.shared.EventId;
 import co.com.nequi.ticketing.model.shared.gateways.ClockProvider;
@@ -34,6 +35,11 @@ class GetOrderUseCaseTest {
 
     private static final Instant CREATED_AT = Instant.parse("2026-10-27T10:00:00Z");
     private static final CustomerId OWNER = new CustomerId(UUID.randomUUID());
+    private static final AuthenticatedUser OWNER_CALLER = new AuthenticatedUser(OWNER, Boolean.FALSE);
+    private static final AuthenticatedUser OTHER_CUSTOMER =
+            new AuthenticatedUser(new CustomerId(UUID.randomUUID()), Boolean.FALSE);
+    private static final AuthenticatedUser ADMIN =
+            new AuthenticatedUser(new CustomerId(UUID.randomUUID()), Boolean.TRUE);
 
     @Mock
     private OrderRepository orderRepository;
@@ -59,7 +65,7 @@ class GetOrderUseCaseTest {
         when(clockProvider.now()).thenReturn(CREATED_AT.plusSeconds(60));
 
         // When / Then
-        StepVerifier.create(useCase.get(new GetOrderQuery(OWNER, order.getOrderId())))
+        StepVerifier.create(useCase.get(new GetOrderQuery(OWNER_CALLER, order.getOrderId())))
                 .assertNext(view -> {
                     assertThat(view.order()).isSameAs(order);
                     assertThat(view.effectiveStatus()).isEqualTo(OrderStatus.RESERVED);
@@ -76,7 +82,7 @@ class GetOrderUseCaseTest {
         when(clockProvider.now()).thenReturn(order.getExpiresAt());
 
         // When / Then
-        StepVerifier.create(useCase.get(new GetOrderQuery(OWNER, order.getOrderId())))
+        StepVerifier.create(useCase.get(new GetOrderQuery(OWNER_CALLER, order.getOrderId())))
                 .assertNext(view -> {
                     assertThat(view.effectiveStatus()).isEqualTo(OrderStatus.EXPIRED);
                     assertThat(view.tickets()).extracting(Ticket::status).containsOnly(TicketStatus.AVAILABLE);
@@ -90,7 +96,7 @@ class GetOrderUseCaseTest {
         when(orderRepository.findById(order.getOrderId())).thenReturn(Mono.empty());
 
         // When / Then
-        StepVerifier.create(useCase.get(new GetOrderQuery(OWNER, order.getOrderId())))
+        StepVerifier.create(useCase.get(new GetOrderQuery(OWNER_CALLER, order.getOrderId())))
                 .expectErrorSatisfies(GetOrderUseCaseTest::assertOrderNotFound)
                 .verify();
         verifyNoInteractions(clockProvider);
@@ -102,9 +108,24 @@ class GetOrderUseCaseTest {
         when(orderRepository.findById(order.getOrderId())).thenReturn(Mono.just(order));
 
         // When / Then
-        StepVerifier.create(useCase.get(new GetOrderQuery(new CustomerId(UUID.randomUUID()), order.getOrderId())))
+        StepVerifier.create(useCase.get(new GetOrderQuery(OTHER_CUSTOMER, order.getOrderId())))
                 .expectErrorSatisfies(GetOrderUseCaseTest::assertOrderNotFound)
                 .verify();
+    }
+
+    @Test
+    void shouldReturnViewWhenAdministratorReadsOrderOfAnotherCustomer() {
+        // Given
+        when(orderRepository.findById(order.getOrderId())).thenReturn(Mono.just(order));
+        when(clockProvider.now()).thenReturn(CREATED_AT.plusSeconds(60));
+
+        // When / Then
+        StepVerifier.create(useCase.get(new GetOrderQuery(ADMIN, order.getOrderId())))
+                .assertNext(view -> {
+                    assertThat(view.order()).isSameAs(order);
+                    assertThat(view.effectiveStatus()).isEqualTo(OrderStatus.RESERVED);
+                })
+                .verifyComplete();
     }
 
     private static void assertOrderNotFound(Throwable error) {

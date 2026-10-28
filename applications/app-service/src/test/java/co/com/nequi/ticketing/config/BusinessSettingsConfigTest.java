@@ -5,6 +5,7 @@ import co.com.nequi.ticketing.model.config.ComplimentarySettings;
 import co.com.nequi.ticketing.model.config.IdempotencySettings;
 import co.com.nequi.ticketing.model.config.InventorySettings;
 import co.com.nequi.ticketing.model.config.OrderSettings;
+import co.com.nequi.ticketing.model.config.PaymentNotificationSettings;
 import co.com.nequi.ticketing.model.config.SweepSettings;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -24,7 +25,7 @@ class BusinessSettingsConfigTest {
                     "orders.max-tickets-per-customer=6", "orders.reservation-ttl=10m", "orders.republish-grace=5s",
                     "orders.republish-concurrency=4", "idempotency.ttl=24h", "idempotency.lease=10s",
                     "sweep.lock-lease=60s", "sweep.batch-size=500", "sweep.concurrency=8",
-                    "complimentary.max-per-grant=50");
+                    "complimentary.max-per-grant=50", "webhook.event-ttl=7d");
 
     @ParameterizedTest
     @ValueSource(strings = {"0", "21"})
@@ -73,12 +74,14 @@ class BusinessSettingsConfigTest {
                     assertThat(context.getBean(SweepSettings.class))
                             .isEqualTo(new SweepSettings(Duration.ofSeconds(60), 500, 8));
                     assertThat(context.getBean(ComplimentarySettings.class)).isEqualTo(new ComplimentarySettings(50));
+                    assertThat(context.getBean(PaymentNotificationSettings.class))
+                            .isEqualTo(new PaymentNotificationSettings(Duration.ofDays(7)));
                 });
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"sweep.batch-size=0", "sweep.concurrency=0", "sweep.lock-lease=0s",
-            "complimentary.max-per-grant=51"})
+            "complimentary.max-per-grant=51", "webhook.event-ttl=0s"})
     void shouldNotStartWhenSweepOrComplimentarySettingIsInvalid(String invalid) {
         // When / Then
         contextRunner.withPropertyValues("inventory.shard-count=1", invalid)

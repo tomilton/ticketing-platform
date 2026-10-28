@@ -18,7 +18,12 @@ class TechnicalErrorMessageTest {
             "SQS_ERROR, TKT0006, true",
             "PAYMENT_GATEWAY_ERROR, TKT0007, true",
             "INVALID_MESSAGE, TKT0008, false",
-            "UNEXPECTED_ERROR, TKT0009, true"
+            "UNEXPECTED_ERROR, TKT0009, true",
+            "UNAUTHORIZED, TKT0010, false",
+            "FORBIDDEN, TKT0011, false",
+            "RATE_LIMITED, TKT0012, false",
+            "INVALID_WEBHOOK_SIGNATURE, TKT0013, false",
+            "PAYLOAD_TOO_LARGE, TKT0014, false"
     })
     void shouldExposeCodeAndRetryableWhenMessageIsRead(TechnicalErrorMessage message, String code,
                                                        Boolean retryable) {

@@ -3,13 +3,17 @@
 
 locals {
   tables_by_role = {
-    api    = ["events", "inventory", "orders", "order_audit", "idempotency", "customer_limits"]
+    api    = ["events", "inventory", "orders", "order_audit", "idempotency", "customer_limits", "payment_webhook_events"]
     worker = ["events", "inventory", "orders", "order_audit", "customer_limits", "scheduler_locks"]
   }
   table_actions = [
     "dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:UpdateItem",
     "dynamodb:DeleteItem", "dynamodb:ConditionCheckItem", "dynamodb:DescribeTable",
   ]
+  payment_queue_actions_by_role = {
+    api    = ["sqs:SendMessage", "sqs:GetQueueUrl", "sqs:GetQueueAttributes"]
+    worker = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:ChangeMessageVisibility", "sqs:GetQueueUrl", "sqs:GetQueueAttributes"]
+  }
   queue_actions_by_role = {
     api    = ["sqs:SendMessage", "sqs:GetQueueUrl", "sqs:GetQueueAttributes"]
     worker = ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:ChangeMessageVisibility", "sqs:GetQueueUrl", "sqs:GetQueueAttributes"]
@@ -31,6 +35,12 @@ locals {
         Resource = [var.queue.arn]
       },
       {
+        Sid      = "PaymentConfirmedQueue"
+        Effect   = "Allow"
+        Action   = local.payment_queue_actions_by_role[var.role]
+        Resource = [var.payment_queue.arn]
+      },
+      {
         Sid      = "EncryptionKeys"
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:Encrypt", "kms:GenerateDataKey", "kms:DescribeKey"]
@@ -41,7 +51,7 @@ locals {
       Sid      = "DeadLetterQueue"
       Effect   = "Allow"
       Action   = ["sqs:SendMessage", "sqs:GetQueueUrl", "sqs:GetQueueAttributes"]
-      Resource = [var.queue.dead_letter_queue_arn]
+      Resource = [var.queue.dead_letter_queue_arn, var.payment_queue.dead_letter_queue_arn]
     }] : [],
   )
 
@@ -83,6 +93,18 @@ resource "aws_iam_role_policy" "execution" {
         Effect   = "Allow"
         Action   = ["logs:CreateLogStream", "logs:PutLogEvents"]
         Resource = ["${aws_cloudwatch_log_group.this.arn}:*"]
+      },
+      {
+        Sid      = "ReadSecrets"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = values(var.secrets)
+      },
+      {
+        Sid      = "DecryptSecrets"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = var.kms_key_arns
       },
     ]
   })

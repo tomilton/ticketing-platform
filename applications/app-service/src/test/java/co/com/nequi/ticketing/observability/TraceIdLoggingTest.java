@@ -1,6 +1,7 @@
 package co.com.nequi.ticketing.observability;
 
 import co.com.nequi.ticketing.dynamodb.support.LocalStackTestSupport;
+import co.com.nequi.ticketing.security.TestIdentityProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -40,12 +42,14 @@ class TraceIdLoggingTest {
     @DynamicPropertySource
     static void dynamoDbProperties(DynamicPropertyRegistry registry) {
         LocalStackTestSupport.springProperties().forEach((name, value) -> registry.add(name, () -> value));
+        registry.add(TestIdentityProvider.JWK_SET_URI_PROPERTY, TestIdentityProvider::jwkSetUri);
     }
 
     @Test
     void shouldLogSameNonEmptyTraceIdInRepositoryLinesWhenRequestIsHandled(CapturedOutput output) {
         // Given
         String eventId = JSON.readTree(webTestClient.post().uri("/api/v1/events")
+                        .header(HttpHeaders.AUTHORIZATION, TestIdentityProvider.bearer(TestIdentityProvider.admin()))
                         .contentType(MediaType.APPLICATION_JSON).bodyValue(BODY).exchange()
                         .expectStatus().isCreated()
                         .expectBody(String.class).returnResult().getResponseBody())

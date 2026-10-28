@@ -1,9 +1,17 @@
 # HTTP API in front of the internal load balancer through a VPC Link, with throttling for the whole
-# API and a stricter limit for POST /orders. The JWT authorizer exists only when var.jwt.enabled.
+# API and a stricter limit for POST /orders. With var.jwt.enabled every route needs a valid token,
+# except the public ones: the catalog and the availability, and the webhook of the payment gateway,
+# which its HMAC signature authenticates. API Gateway picks the most specific route, so the public
+# routes win over the catch-all one.
 
 locals {
   orders_route = "POST ${var.base_path}/orders"
   routes       = ["ANY ${var.base_path}/{proxy+}", local.orders_route]
+  public_routes = [
+    "GET ${var.base_path}/events",
+    "GET ${var.base_path}/events/{proxy+}",
+    "POST ${var.base_path}/webhooks/payments",
+  ]
 }
 
 resource "aws_apigatewayv2_api" "this" {
@@ -43,12 +51,22 @@ resource "aws_apigatewayv2_authorizer" "jwt" {
 resource "aws_apigatewayv2_route" "this" {
   for_each = toset(local.routes)
 
-  # checkov:skip=CKV_AWS_309: the JWT authorizer arrives with feature 004 and is switched on by var.jwt.enabled
+  # checkov:skip=CKV_AWS_309: every environment sets var.jwt.enabled; the flag only exists for the module tests
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = each.value
   target             = "integrations/${aws_apigatewayv2_integration.alb.id}"
   authorization_type = var.jwt.enabled ? "JWT" : "NONE"
   authorizer_id      = var.jwt.enabled ? aws_apigatewayv2_authorizer.jwt[0].id : null
+}
+
+resource "aws_apigatewayv2_route" "public" {
+  for_each = toset(local.public_routes)
+
+  # checkov:skip=CKV_AWS_309: public by design; the webhook is authenticated by its HMAC signature in the API
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = each.value
+  target             = "integrations/${aws_apigatewayv2_integration.alb.id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_cloudwatch_log_group" "api_access" {
@@ -85,5 +103,5 @@ resource "aws_apigatewayv2_stage" "default" {
     })
   }
 
-  depends_on = [aws_apigatewayv2_route.this]
+  depends_on = [aws_apigatewayv2_route.this, aws_apigatewayv2_route.public]
 }

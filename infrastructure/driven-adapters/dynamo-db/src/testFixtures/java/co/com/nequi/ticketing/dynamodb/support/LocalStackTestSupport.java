@@ -31,8 +31,11 @@ public final class LocalStackTestSupport {
     public static final String EXPIRING_RESERVATIONS_INDEX = "expiring-reservations";
     public static final String PENDING_PUBLICATION_INDEX = "pending-publication";
     public static final String SCHEDULER_LOCKS_TABLE = "scheduler_locks";
+    public static final String WEBHOOK_EVENTS_TABLE = "payment_webhook_events";
     public static final String ORDER_PLACED_QUEUE = "order-placed";
     public static final String ORDER_PLACED_DLQ = "order-placed-dlq";
+    public static final String PAYMENT_CONFIRMED_QUEUE = "payment-confirmed";
+    public static final String PAYMENT_CONFIRMED_DLQ = "payment-confirmed-dlq";
     public static final String VISIBILITY_TIMEOUT_SECONDS = "5";
     public static final String MAX_RECEIVE_COUNT = "5";
 
@@ -62,8 +65,11 @@ public final class LocalStackTestSupport {
                     Map.entry("DYNAMODB_EXPIRING_RESERVATIONS_INDEX", EXPIRING_RESERVATIONS_INDEX),
                     Map.entry("DYNAMODB_PENDING_PUBLICATION_INDEX", PENDING_PUBLICATION_INDEX),
                     Map.entry("DYNAMODB_SCHEDULER_LOCKS_TABLE", SCHEDULER_LOCKS_TABLE),
+                    Map.entry("DYNAMODB_WEBHOOK_EVENTS_TABLE", WEBHOOK_EVENTS_TABLE),
                     Map.entry("SQS_ORDER_PLACED_QUEUE", ORDER_PLACED_QUEUE),
                     Map.entry("SQS_ORDER_PLACED_DLQ", ORDER_PLACED_DLQ),
+                    Map.entry("SQS_PAYMENT_CONFIRMED_QUEUE", PAYMENT_CONFIRMED_QUEUE),
+                    Map.entry("SQS_PAYMENT_CONFIRMED_DLQ", PAYMENT_CONFIRMED_DLQ),
                     Map.entry("SQS_VISIBILITY_TIMEOUT_SECONDS", VISIBILITY_TIMEOUT_SECONDS),
                     Map.entry("SQS_MAX_RECEIVE_COUNT", MAX_RECEIVE_COUNT)))
             .withCopyFileToContainer(script(DYNAMODB_SCRIPT), CONTAINER_INIT_DIRECTORY + DYNAMODB_SCRIPT)

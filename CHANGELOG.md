@@ -5,6 +5,29 @@ Todos los cambios relevantes del proyecto se registran en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el proyecto usa
 [versionamiento semántico](https://semver.org/lang/es/).
 
+## [1.4.0] - Unreleased
+
+### Added
+
+- Autenticación JWT (OAuth2 Resource Server reactivo): JWKS en AWS y HS256 de desarrollo solo con el
+  perfil `local` (`deployment/local/token.sh`). 401 `TKT0010` con `WWW-Authenticate` y 403 `TKT0011`.
+- Rol de administrador desde un claim configurable para crear eventos y asignar cortesías.
+- Rate limit de compras por cliente y réplica (429 `TKT0012` con `Retry-After`) y tamaño máximo del
+  body (413 `TKT0014`).
+- Idempotencia de las cortesías en su transacción y `actorId` del administrador en la auditoría.
+- Circuit breaker de Resilience4j en cobros y reembolsos, con log y métrica de estado.
+- Webhook de pagos firmado con HMAC (401 `TKT0013`), tabla de avisos con TTL, cola
+  `payment-confirmed` con DLQ y consumidor en el worker que reutiliza las transiciones del cobro.
+- Terraform: tabla y colas nuevas, secreto HMAC en Secrets Manager, permisos, alarma de la DLQ nueva y
+  JWT activo en API Gateway con las rutas públicas sin autorizador.
+- Postman: tokens y firma generados por la colección, flujos "8. Webhook firmado" y "9. Seguridad".
+
+### Changed
+
+- La identidad del cliente sale del `sub` del token; se elimina `X-Customer-Id`.
+- `GET /orders/{orderId}` responde a su dueño o a un administrador; a otro cliente, 404 `TKB0002`.
+- `POST /events/{eventId}/complimentary` exige `Idempotency-Key`.
+
 ## [1.3.0] - Unreleased
 
 ### Added

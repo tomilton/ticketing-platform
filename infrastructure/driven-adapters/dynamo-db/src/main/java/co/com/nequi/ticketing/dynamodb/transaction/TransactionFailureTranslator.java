@@ -56,19 +56,22 @@ public class TransactionFailureTranslator {
 
     /**
      * Translates the cancellation of a complimentary grant. Its event and shard items have the same
-     * positions as in a reservation.
+     * positions as in a reservation; its idempotency key is the last item.
      *
      * @param cancellation the cancellation returned by DynamoDB
      * @return {@code EVENT_NOT_ACTIVE}, {@link ShardSoldOutException} to try another shard,
-     * {@link TransactionConflictException} to retry, or a technical exception
+     * {@code REQUEST_IN_PROGRESS}, {@link TransactionConflictException} to retry, or a technical exception
      */
     public RuntimeException translateGrant(TransactionCanceledException cancellation) {
         List<String> codes = codes(cancellation);
         if (failed(codes, EVENT_ITEM)) {
             return EVENT_NOT_ACTIVE.build();
         }
-        return failed(codes, SHARD_ITEM) && onlyOneFailed(codes)
-                ? new ShardSoldOutException()
+        if (failed(codes, SHARD_ITEM) && onlyOneFailed(codes)) {
+            return new ShardSoldOutException();
+        }
+        return failed(codes, ComplimentaryTransactionBuilder.GRANT_KEY_ITEM)
+                ? REQUEST_IN_PROGRESS.build()
                 : toConflictOrTechnical(codes, cancellation);
     }
 

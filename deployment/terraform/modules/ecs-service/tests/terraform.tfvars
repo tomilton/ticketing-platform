@@ -23,22 +23,24 @@ load_balancer = {
 }
 log_retention_days = 30
 table_names = {
-  events          = "events"
-  inventory       = "inventory"
-  orders          = "orders"
-  order_audit     = "order_audit"
-  idempotency     = "idempotency"
-  customer_limits = "customer_event_limits"
-  scheduler_locks = "scheduler_locks"
+  events                 = "events"
+  inventory              = "inventory"
+  orders                 = "orders"
+  order_audit            = "order_audit"
+  idempotency            = "idempotency"
+  customer_limits        = "customer_event_limits"
+  scheduler_locks        = "scheduler_locks"
+  payment_webhook_events = "payment_webhook_events"
 }
 table_arns = {
-  events          = "arn:aws:dynamodb:us-east-1:123456789012:table/events"
-  inventory       = "arn:aws:dynamodb:us-east-1:123456789012:table/inventory"
-  orders          = "arn:aws:dynamodb:us-east-1:123456789012:table/orders"
-  order_audit     = "arn:aws:dynamodb:us-east-1:123456789012:table/order_audit"
-  idempotency     = "arn:aws:dynamodb:us-east-1:123456789012:table/idempotency"
-  customer_limits = "arn:aws:dynamodb:us-east-1:123456789012:table/customer_event_limits"
-  scheduler_locks = "arn:aws:dynamodb:us-east-1:123456789012:table/scheduler_locks"
+  events                 = "arn:aws:dynamodb:us-east-1:123456789012:table/events"
+  inventory              = "arn:aws:dynamodb:us-east-1:123456789012:table/inventory"
+  orders                 = "arn:aws:dynamodb:us-east-1:123456789012:table/orders"
+  order_audit            = "arn:aws:dynamodb:us-east-1:123456789012:table/order_audit"
+  idempotency            = "arn:aws:dynamodb:us-east-1:123456789012:table/idempotency"
+  customer_limits        = "arn:aws:dynamodb:us-east-1:123456789012:table/customer_event_limits"
+  scheduler_locks        = "arn:aws:dynamodb:us-east-1:123456789012:table/scheduler_locks"
+  payment_webhook_events = "arn:aws:dynamodb:us-east-1:123456789012:table/payment_webhook_events"
 }
 index_names = {
   events_by_status_date = "by-status-date"
@@ -51,9 +53,24 @@ queue = {
   dead_letter_queue_name = "order-placed-dlq"
   dead_letter_queue_arn  = "arn:aws:sqs:us-east-1:123456789012:order-placed-dlq"
 }
+payment_queue = {
+  name                   = "payment-confirmed"
+  arn                    = "arn:aws:sqs:us-east-1:123456789012:payment-confirmed"
+  dead_letter_queue_name = "payment-confirmed-dlq"
+  dead_letter_queue_arn  = "arn:aws:sqs:us-east-1:123456789012:payment-confirmed-dlq"
+}
+secrets = {
+  WEBHOOK_HMAC_SECRET = "arn:aws:secretsmanager:us-east-1:123456789012:secret:ticketing-webhook-hmac"
+}
 kms_key_arns = ["arn:aws:kms:us-east-1:123456789012:key/tables", "arn:aws:kms:us-east-1:123456789012:key/queues"]
 settings = {
   CORS_ALLOWED_ORIGINS                  = "https://tickets.example.com"
+  JWT_JWK_SET_URI                       = "https://auth.example.com/.well-known/jwks.json"
+  JWT_ISSUER                            = "https://auth.example.com"
+  JWT_AUDIENCE                          = "ticketing-platform"
+  JWT_ROLES_CLAIM                       = "cognito:groups"
+  JWT_ADMIN_ROLE                        = "ticketing-admin"
+  JWT_CLOCK_SKEW                        = "PT60S"
   MANAGEMENT_HEALTH_SHOW_COMPONENTS     = "never"
   DYNAMODB_API_CALL_TIMEOUT             = "PT2S"
   DYNAMODB_API_CALL_ATTEMPT_TIMEOUT     = "PT0.5S"

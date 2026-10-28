@@ -13,6 +13,7 @@ import co.com.nequi.ticketing.api.event.mapper.EventMapperImpl;
 import co.com.nequi.ticketing.api.handle.exceptions.ErrorResponseBuilder;
 import co.com.nequi.ticketing.api.handle.exceptions.ErrorStatusMapper;
 import co.com.nequi.ticketing.api.handle.exceptions.GlobalErrorWebExceptionHandler;
+import co.com.nequi.ticketing.api.support.SecurityTestConfig;
 import co.com.nequi.ticketing.api.validation.BeanValidator;
 import co.com.nequi.ticketing.model.enums.BusinessErrorMessage;
 import co.com.nequi.ticketing.model.inventory.EventInventory;
@@ -173,7 +174,7 @@ class AvailabilityRouteIntegrationTest {
     @Configuration
     @EnableConfigurationProperties({RouteProperties.class, EventPaginationProperties.class,
             AvailabilityBatchProperties.class, AvailabilityStreamProperties.class})
-    @Import({AvailabilityRouterRest.class, AvailabilityHandler.class, AvailabilityStreamHub.class,
+    @Import({SecurityTestConfig.class, AvailabilityRouterRest.class, AvailabilityHandler.class, AvailabilityStreamHub.class,
             AvailabilityMapperImpl.class,
             AvailabilityMapManagement.class, EventRouterRest.class, EventHandler.class, EventMapperImpl.class,
             EventMapManagement.class, BeanValidator.class, GlobalErrorWebExceptionHandler.class,

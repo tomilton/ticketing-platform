@@ -1,9 +1,11 @@
 package co.com.nequi.ticketing.model.order;
 
 import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
+import co.com.nequi.ticketing.model.idempotency.IdempotencyScope;
 import co.com.nequi.ticketing.model.order.command.PlaceOrderCommand;
 import co.com.nequi.ticketing.model.order.event.OrderPlacedMessage;
 import co.com.nequi.ticketing.model.order.request.GetOrderQuery;
+import co.com.nequi.ticketing.model.shared.AuthenticatedUser;
 import co.com.nequi.ticketing.model.shared.CustomerId;
 import co.com.nequi.ticketing.model.shared.EventId;
 import org.junit.jupiter.api.Test;
@@ -36,7 +38,7 @@ class OrderRequestsTest {
     void shouldThrowNullPointerExceptionWhenQueryComponentIsNull() {
         // When / Then
         assertThatThrownBy(() -> new GetOrderQuery(null, ORDER_ID)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new GetOrderQuery(CUSTOMER_ID, null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new GetOrderQuery(new AuthenticatedUser(CUSTOMER_ID, Boolean.FALSE), null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -47,6 +49,18 @@ class OrderRequestsTest {
         assertThatThrownBy(() -> new OrderPlacedMessage(TOKEN, ORDER_ID, null, QUANTITY, NOW)).isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> new OrderPlacedMessage(TOKEN, ORDER_ID, EVENT_ID, null, NOW)).isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> new OrderPlacedMessage(TOKEN, ORDER_ID, EVENT_ID, QUANTITY, null)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void shouldThrowNullPointerExceptionWhenGrantContextComponentIsNull() {
+        // Given
+        IdempotencyScope scope = IdempotencyScope.ofAdministrator(CUSTOMER_ID);
+
+        // When / Then
+        assertThatThrownBy(() -> new GrantContext(null, scope, KEY, TOKEN)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new GrantContext(CUSTOMER_ID, null, KEY, TOKEN)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new GrantContext(CUSTOMER_ID, scope, null, TOKEN)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new GrantContext(CUSTOMER_ID, scope, KEY, null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test

@@ -4,17 +4,21 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.reactive.CorsWebFilter;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Allowed origins of the browsers. The security filter chain applies it before the authentication,
+ * so a preflight request and a rejected request also get their CORS headers.
+ */
 @Configuration
 public class CorsConfig {
 
     @Bean
-    CorsWebFilter corsWebFilter(@Value("${app.cors.allowed-origins}") List<String> origins) {
+    CorsConfigurationSource corsConfigurationSource(@Value("${app.cors.allowed-origins}") List<String> origins) {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(Boolean.TRUE);
         config.setAllowedOrigins(origins);
@@ -24,6 +28,6 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
 
-        return new CorsWebFilter(source);
+        return source;
     }
 }

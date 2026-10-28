@@ -66,10 +66,12 @@ class OrderDynamoRepositoryTransitionTest {
         DynamoDbProperties properties = OrderFixtures.properties(2, Duration.ofSeconds(5));
         OrderEntityMapper orderMapper = Mappers.getMapper(OrderEntityMapper.class);
         AuditItemBuilder auditItemBuilder = new AuditItemBuilder(properties);
+        ReservationTransactionBuilder reservationBuilder = new ReservationTransactionBuilder(properties, orderMapper,
+                new IdempotencyEntityMapper(), auditItemBuilder);
         repository = new OrderDynamoRepository(client, properties, orderMapper,
-                new ReservationTransactionBuilder(properties, orderMapper, new IdempotencyEntityMapper(), auditItemBuilder),
+                reservationBuilder,
                 new TransitionTransactionBuilder(properties, auditItemBuilder), new TransactionFailureTranslator(),
-                new ComplimentaryTransactionBuilder(properties, orderMapper, auditItemBuilder));
+                new ComplimentaryTransactionBuilder(properties, orderMapper, auditItemBuilder, reservationBuilder));
         Order reserved = OrderFixtures.order(OrderFixtures.event(1), 2, 0);
         transition = reserved.transitionTo(OrderStatus.PENDING_CONFIRMATION, StatusChangeReason.PAYMENT_REQUESTED,
                 NOW.plusSeconds(1));

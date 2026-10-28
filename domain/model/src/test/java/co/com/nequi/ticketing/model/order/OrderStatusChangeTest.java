@@ -27,6 +27,26 @@ class OrderStatusChangeTest {
     }
 
     @Test
+    void shouldKeepActorIdWhenAdministratorCausesChange() {
+        // When
+        OrderStatusChange change = new OrderStatusChange(ORDER_ID, null, OrderStatus.COMPLIMENTARY,
+                StatusChangeReason.COMPLIMENTARY_GRANTED, ChangeActor.ADMIN, AT, "22222222-2222-4222-8222-222222222222");
+
+        // Then
+        assertThat(change.actorId()).isEqualTo("22222222-2222-4222-8222-222222222222");
+    }
+
+    @Test
+    void shouldLeaveActorIdEmptyWhenCustomerCausesChange() {
+        // When
+        OrderStatusChange change = new OrderStatusChange(ORDER_ID, null, OrderStatus.RESERVED,
+                StatusChangeReason.PLACED, ChangeActor.CUSTOMER, AT);
+
+        // Then
+        assertThat(change.actorId()).isNull();
+    }
+
+    @Test
     void shouldThrowNullPointerExceptionWhenRequiredComponentIsNull() {
         // When / Then
         assertThatThrownBy(() -> new OrderStatusChange(null, null, OrderStatus.RESERVED, StatusChangeReason.PLACED,

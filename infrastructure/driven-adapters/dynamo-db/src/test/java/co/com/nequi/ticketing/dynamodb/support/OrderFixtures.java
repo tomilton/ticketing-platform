@@ -4,6 +4,7 @@ import co.com.nequi.ticketing.dynamodb.config.DynamoDbProperties;
 import co.com.nequi.ticketing.model.event.Event;
 import co.com.nequi.ticketing.model.event.Venue;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
+import co.com.nequi.ticketing.model.idempotency.IdempotencyScope;
 import co.com.nequi.ticketing.model.order.Order;
 import co.com.nequi.ticketing.model.order.OrderId;
 import co.com.nequi.ticketing.model.order.Quantity;
@@ -27,6 +28,7 @@ public class OrderFixtures {
     public static final Duration TTL = Duration.ofMinutes(10);
     public static final Instant EVENT_DATE = Instant.parse("2026-12-01T20:00:00Z");
     public static final CustomerId CUSTOMER_ID = new CustomerId(UUID.fromString("0b6c7f3e-8a2d-4f51-9c3e-1d2a3b4c5d6e"));
+    public static final IdempotencyScope SCOPE = IdempotencyScope.ofCustomer(CUSTOMER_ID);
     public static final IdempotencyKey KEY = new IdempotencyKey(UUID.fromString("7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"));
     public static final UUID LOCK_TOKEN = UUID.fromString("5c4d3e2f-1a0b-4c9d-8e7f-6a5b4c3d2e1f");
 

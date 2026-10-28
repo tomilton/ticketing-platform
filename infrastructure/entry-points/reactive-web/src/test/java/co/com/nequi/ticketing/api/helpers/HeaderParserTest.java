@@ -5,7 +5,6 @@ import co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage;
 import co.com.nequi.ticketing.commons.exception.TechnicalException;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
 import co.com.nequi.ticketing.model.order.OrderId;
-import co.com.nequi.ticketing.model.shared.CustomerId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
@@ -23,19 +22,8 @@ class HeaderParserTest {
     @Test
     void shouldReturnIdentifiersWhenValuesAreUuids() {
         // When / Then
-        assertThat(HeaderParser.parseCustomerId(VALUE.toString())).isEqualTo(new CustomerId(VALUE));
         assertThat(HeaderParser.parseIdempotencyKey(VALUE.toString())).isEqualTo(new IdempotencyKey(VALUE));
         assertThat(HeaderParser.parseOrderId(VALUE.toString())).isEqualTo(new OrderId(VALUE));
-    }
-
-    @ParameterizedTest
-    @NullAndEmptySource
-    @ValueSource(strings = {" ", " 11111111-1111-4111-8111-111111111111", "abc", "1-1-1-1-1"})
-    void shouldFailWithValidationErrorNamingHeaderWhenCustomerIdIsNotUuid(String value) {
-        // When / Then
-        assertThatThrownBy(() -> HeaderParser.parseCustomerId(value))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("X-Customer-Id");
     }
 
     @ParameterizedTest
@@ -49,10 +37,12 @@ class HeaderParserTest {
                 .isEqualTo(TechnicalErrorMessage.MISSING_IDEMPOTENCY_KEY);
     }
 
-    @Test
-    void shouldFailWithValidationErrorNamingParameterWhenOrderIdIsNotUuid() {
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {" ", " 11111111-1111-4111-8111-111111111111", "not-a-uuid", "1-1-1-1-1"})
+    void shouldFailWithValidationErrorNamingParameterWhenOrderIdIsNotUuid(String value) {
         // When / Then
-        assertThatThrownBy(() -> HeaderParser.parseOrderId("not-a-uuid"))
+        assertThatThrownBy(() -> HeaderParser.parseOrderId(value))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("orderId");
     }

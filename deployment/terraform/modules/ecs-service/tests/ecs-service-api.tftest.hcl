@@ -33,8 +33,16 @@ run "runs_the_api_behind_the_load_balancer_with_its_role" {
   }
 
   assert {
-    condition     = length(jsondecode(aws_ecs_task_definition.this.container_definitions)[0].environment) == 67
-    error_message = "The task must receive the 67 variables of application.yaml that exist in AWS."
+    condition     = length(jsondecode(aws_ecs_task_definition.this.container_definitions)[0].environment) == 88
+    error_message = "The task must receive the 88 variables of application.yaml that exist in AWS."
+  }
+
+  assert {
+    condition = jsondecode(aws_ecs_task_definition.this.container_definitions)[0].secrets == [{
+      name      = "WEBHOOK_HMAC_SECRET"
+      valueFrom = "arn:aws:secretsmanager:us-east-1:123456789012:secret:ticketing-webhook-hmac"
+    }]
+    error_message = "The HMAC secret of the webhook must come from Secrets Manager, never as plain environment."
   }
 
   assert {

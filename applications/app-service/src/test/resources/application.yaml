@@ -5,6 +5,8 @@ spring:
     name: ticketing-platform-test
   reactor:
     context-propagation: auto
+  codec:
+    max-in-memory-size: 16KB
 logging:
   structured:
     format:
@@ -15,6 +17,23 @@ app:
   role: api
   cors:
     allowed-origins: http://localhost:4200
+security:
+  jwt:
+    mode: JWKS
+    jwk-set-uri: http://localhost/started-by-test-identity-provider
+    issuer: https://issuer.test
+    audience: ticketing-platform
+    roles-claim: cognito:groups
+    admin-role: ticketing-admin
+    clock-skew: 60s
+webhook:
+  secret: test-only-webhook-secret-0123456789
+  tolerance: 5m
+  event-ttl: 7d
+rate-limit:
+  orders:
+    limit-for-period: 1000
+    period: 1m
 routes:
   base-path: /api/v1
   events: /events
@@ -25,6 +44,7 @@ routes:
   orders: /orders
   order-by-id: /orders/{orderId}
   complimentary: /events/{eventId}/complimentary
+  payment-webhook: /webhooks/payments
 adapters:
   dynamodb:
     api-call-timeout: 5s
@@ -34,6 +54,7 @@ adapters:
     orders-table: orders
     order-audit-table: order_audit
     idempotency-table: idempotency
+    webhook-events-table: payment_webhook_events
     customer-limits-table: customer_event_limits
     expiring-reservations-index: expiring-reservations
     pending-publication-index: pending-publication
@@ -44,11 +65,14 @@ adapters:
     sender:
       region: us-east-1
       order-placed-queue: order-placed
+      payment-confirmed-queue: payment-confirmed
       send-timeout: 2s
     listener:
       region: us-east-1
       order-placed-queue: order-placed
       order-placed-dlq: order-placed-dlq
+      payment-confirmed-queue: payment-confirmed
+      payment-confirmed-dlq: payment-confirmed-dlq
       wait-time: 1s
       max-messages: 10
       max-concurrency: 4
@@ -58,6 +82,12 @@ adapters:
     timeout: 2s
     approval-rate: 0.5
     slow-latency: 5s
+    circuit-breaker:
+      failure-rate-threshold: 50
+      sliding-window-size: 20
+      minimum-calls: 10
+      wait-in-open: 30s
+      half-open-calls: 3
 inventory:
   shard-count: 3
 availability:

@@ -43,8 +43,9 @@ contra borrado de las tablas y el ALB; un valor menor falla en la validación.
   CloudFront y en API Gateway; el salto interno en la VPC privada es HTTP.
 - **Barrido.** Corre en el worker con el lock de DynamoDB, igual que en local. EventBridge Scheduler
   queda como evolución (RFC §9).
-- **JWT.** El autorizador de API Gateway se crea solo con `edge.jwt.enabled = true`, que llega con la
-  feature 004. Hasta entonces la API usa `X-Customer-Id`.
+- **JWT.** El autorizador de API Gateway está activo con el emisor y la audiencia de cada ambiente
+  (`edge.jwt` en `terraform.tfvars`); el catálogo, la disponibilidad y el webhook firmado son rutas
+  públicas. El secreto HMAC del webhook vive en Secrets Manager y su valor se carga fuera de Terraform.
 - **Health check del contenedor.** La imagen `eclipse-temurin:25-jre` no trae curl ni wget, así que el
   chequeo habla HTTP con un socket TCP de bash contra `/actuator/health`. La raíz del contenedor es de
   solo lectura, con un volumen efímero en `/tmp`.

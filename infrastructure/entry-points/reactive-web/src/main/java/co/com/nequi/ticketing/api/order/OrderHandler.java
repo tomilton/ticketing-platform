@@ -5,9 +5,11 @@ import co.com.nequi.ticketing.api.helpers.RequestHelper;
 import co.com.nequi.ticketing.api.order.dto.request.PlaceOrderRequestDto;
 import co.com.nequi.ticketing.api.order.mapper.OrderMapManagement;
 import co.com.nequi.ticketing.api.order.mapper.OrderMapper;
+import co.com.nequi.ticketing.api.security.AuthenticatedUserResolver;
 import co.com.nequi.ticketing.api.validation.BeanValidator;
 import co.com.nequi.ticketing.model.exception.BusinessException;
 import co.com.nequi.ticketing.model.order.request.GetOrderQuery;
+import co.com.nequi.ticketing.model.shared.AuthenticatedUser;
 import co.com.nequi.ticketing.model.success.SuccessMessage;
 import co.com.nequi.ticketing.usecase.getorder.GetOrderUseCase;
 import co.com.nequi.ticketing.usecase.placeorder.PlaceOrderUseCase;
@@ -21,7 +23,7 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
 /**
- * Handlers of the order resource. The identity of the customer comes from {@code X-Customer-Id}
+ * Handlers of the order resource. The identity of the customer is the subject of the bearer token
  * and the purchase is idempotent by {@code Idempotency-Key}. Every purchase counts its result, without
  * customer or order identifiers as tags.
  */
@@ -31,6 +33,7 @@ public class OrderHandler {
 
     private final PlaceOrderUseCase placeOrderUseCase;
     private final GetOrderUseCase getOrderUseCase;
+    private final AuthenticatedUserResolver authenticatedUserResolver;
     private final OrderMapper orderMapper;
     private final OrderMapManagement mapManagement;
     private final BeanValidator beanValidator;
@@ -41,7 +44,8 @@ public class OrderHandler {
     private static final String ACCEPTED_RESULT = "accepted";
 
     public Mono<ServerResponse> placeOrder(ServerRequest request) {
-        return Mono.fromCallable(() -> HeaderParser.parseCustomerId(header(request, HeaderParser.CUSTOMER_ID)))
+        return authenticatedUserResolver.resolve()
+                .map(AuthenticatedUser::id)
                 .zipWith(Mono.fromCallable(() -> HeaderParser.parseIdempotencyKey(
                         header(request, HeaderParser.IDEMPOTENCY_KEY))))
                 .flatMap(identity -> RequestHelper.bodyToMonoOrFailWhenEmpty(request, PlaceOrderRequestDto.class)
@@ -59,9 +63,9 @@ public class OrderHandler {
     }
 
     public Mono<ServerResponse> getOrder(ServerRequest request) {
-        return Mono.fromCallable(() -> new GetOrderQuery(
-                        HeaderParser.parseCustomerId(header(request, HeaderParser.CUSTOMER_ID)),
-                        HeaderParser.parseOrderId(request.pathVariable(HeaderParser.ORDER_ID))))
+        return authenticatedUserResolver.resolve()
+                .flatMap(user -> Mono.fromCallable(() -> new GetOrderQuery(user,
+                        HeaderParser.parseOrderId(request.pathVariable(HeaderParser.ORDER_ID)))))
                 .flatMap(getOrderUseCase::get)
                 .map(orderMapper::toResponse)
                 .map(order -> mapManagement.buildResponse(order, SuccessMessage.SUCCESSFUL))

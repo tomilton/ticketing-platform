@@ -1,8 +1,12 @@
 dependencies {
     implementation project(':commons')
+    implementation "io.github.resilience4j:resilience4j-circuitbreaker:${resilience4jVersion}"
+    implementation "io.github.resilience4j:resilience4j-reactor:${resilience4jVersion}"
+    compileOnly 'io.micrometer:micrometer-core'
     compileOnly 'org.springframework.boot:spring-boot-starter'
     compileOnly 'jakarta.validation:jakarta.validation-api'
     testImplementation 'org.springframework.boot:spring-boot-starter'
+    testImplementation 'io.micrometer:micrometer-core'
     testImplementation "io.projectreactor.tools:blockhound:${blockhoundVersion}"
     testImplementation "io.projectreactor.tools:blockhound-junit-platform:${blockhoundVersion}"
 }

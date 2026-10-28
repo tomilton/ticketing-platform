@@ -1,3 +1,8 @@
+spring:
+  profiles:
+    active: local
+  codec:
+    max-in-memory-size: 16KB
 app:
   role: api
   cors:
@@ -12,6 +17,7 @@ routes:
   orders: /orders
   order-by-id: /orders/{orderId}
   complimentary: /events/{eventId}/complimentary
+  payment-webhook: /webhooks/payments
 pagination:
   events:
     default-size: 20
@@ -22,3 +28,20 @@ availability:
     heartbeat: 100ms
     max-duration: 500ms
     retry: 1s
+webhook:
+  secret: test-only-webhook-secret-0123456789
+  tolerance: 5m
+rate-limit:
+  orders:
+    limit-for-period: 1000
+    period: 1m
+security:
+  jwt:
+    mode: LOCAL_HS256
+    jwk-set-uri: http://localhost/unused-in-local-mode
+    issuer: https://issuer.test
+    audience: ticketing-platform
+    roles-claim: cognito:groups
+    admin-role: ticketing-admin
+    clock-skew: 60s
+    local-secret: test-only-secret-for-hs256-tokens-0123456789

@@ -16,6 +16,7 @@ import org.springframework.validation.annotation.Validated;
  * @param orders             the collection of orders
  * @param orderById          one order
  * @param complimentary      the complimentary tickets of one event
+ * @param paymentWebhook     the notices of the payment gateway
  */
 @Validated
 @ConfigurationProperties("routes")
@@ -27,7 +28,8 @@ public record RouteProperties(@NotBlank String basePath,
                               @NotBlank String availabilityStream,
                               @NotBlank String orders,
                               @NotBlank String orderById,
-                              @NotBlank String complimentary) {
+                              @NotBlank String complimentary,
+                              @NotBlank String paymentWebhook) {
 
     public String eventsPath() {
         return basePath + events;
@@ -59,5 +61,9 @@ public record RouteProperties(@NotBlank String basePath,
 
     public String complimentaryPath() {
         return basePath + complimentary;
+    }
+
+    public String paymentWebhookPath() {
+        return basePath + paymentWebhook;
     }
 }

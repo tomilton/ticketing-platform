@@ -24,7 +24,7 @@ scaling = {
 edge = {
   throttling            = { rate = 100, burst = 200, orders_rate = 20, orders_burst = 40 }
   waf_rate_limit_per_ip = 1000
-  jwt                   = { enabled = false, issuer = "", audience = [] }
+  jwt                   = { enabled = true, issuer = "https://auth-dev.example.com", audience = ["ticketing-platform"] }
   certificate_arn       = null
   aliases               = []
   price_class           = "PriceClass_100"
@@ -40,6 +40,12 @@ observability = {
 
 settings = {
   CORS_ALLOWED_ORIGINS                  = "https://tickets-dev.example.com"
+  JWT_JWK_SET_URI                       = "https://auth-dev.example.com/.well-known/jwks.json"
+  JWT_ISSUER                            = "https://auth-dev.example.com"
+  JWT_AUDIENCE                          = "ticketing-platform"
+  JWT_ROLES_CLAIM                       = "cognito:groups"
+  JWT_ADMIN_ROLE                        = "ticketing-admin"
+  JWT_CLOCK_SKEW                        = "PT60S"
   MANAGEMENT_HEALTH_SHOW_COMPONENTS     = "always"
   DYNAMODB_API_CALL_TIMEOUT             = "PT2S"
   DYNAMODB_API_CALL_ATTEMPT_TIMEOUT     = "PT0.5S"

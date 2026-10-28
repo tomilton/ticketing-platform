@@ -6,3 +6,6 @@ adapters:
       endpoint: ${AWS_ENDPOINT_URL}
     listener:
       endpoint: ${AWS_ENDPOINT_URL}
+security:
+  jwt:
+    local-secret: ${JWT_LOCAL_SECRET}

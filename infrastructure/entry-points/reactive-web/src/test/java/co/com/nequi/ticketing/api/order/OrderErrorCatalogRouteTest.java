@@ -1,5 +1,6 @@
 package co.com.nequi.ticketing.api.order;
 
+import co.com.nequi.ticketing.api.support.TestTokens;
 import co.com.nequi.ticketing.model.enums.BusinessErrorMessage;
 import co.com.nequi.ticketing.model.order.command.PlaceOrderCommand;
 import co.com.nequi.ticketing.model.order.request.GetOrderQuery;
@@ -10,6 +11,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webflux.test.autoconfigure.WebFluxTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
@@ -33,7 +35,7 @@ import static org.mockito.Mockito.when;
 class OrderErrorCatalogRouteTest {
 
     private static final String ORDERS = "/api/v1/orders";
-    private static final String CUSTOMER = "11111111-1111-4111-8111-111111111111";
+    private static final String CUSTOMER = TestTokens.bearer(TestTokens.customer());
     private static final String KEY = "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
     private static final String KNOWN_ID = "3f1c2a7e-1d2b-4c5d-9e8f-0a1b2c3d4e5f";
     private static final String CODE_PATTERN = "^TK[BT]\\d{4}$";
@@ -53,7 +55,7 @@ class OrderErrorCatalogRouteTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("errorCases")
     void shouldAnswerCatalogCodeWhenSpecificationErrorHappens(String scenario, HttpMethod method, String uri,
-                                                              String customer, String key, String body,
+                                                              String authorization, String key, String body,
                                                               Integer status, String code,
                                                               Consumer<OrderErrorCatalogRouteTest> stub) {
         // Given
@@ -61,7 +63,7 @@ class OrderErrorCatalogRouteTest {
         WebTestClient.RequestBodySpec request = webTestClient.method(method).uri(uri)
                 .contentType(MediaType.APPLICATION_JSON);
         request.headers(headers -> {
-            headers.set("X-Customer-Id", customer);
+            headers.set(HttpHeaders.AUTHORIZATION, authorization);
             headers.set("Idempotency-Key", key);
         });
 
@@ -87,7 +89,7 @@ class OrderErrorCatalogRouteTest {
                         BODY.replace("\"quantity\":2", "\"quantity\":7"), 400, "TKT0001", NO_STUB),
                 Arguments.of("US1-6 limit exceeded", HttpMethod.POST, ORDERS, CUSTOMER, KEY, BODY, 422, "TKB0004",
                         rejection(BusinessErrorMessage.TICKET_LIMIT_EXCEEDED)),
-                Arguments.of("US1-7 missing customer", HttpMethod.POST, ORDERS, "", KEY, BODY, 400, "TKT0001",
+                Arguments.of("US1-7 missing token", HttpMethod.POST, ORDERS, "", KEY, BODY, 401, "TKT0010",
                         NO_STUB),
                 Arguments.of("US2-5 order of another customer", HttpMethod.GET, ORDERS + "/" + KNOWN_ID, CUSTOMER,
                         KEY, null, 404, "TKB0002",

@@ -112,10 +112,12 @@ class OrderTest {
         // Given
         Order order = Order.grantComplimentary(OrderId.newId(), CUSTOMER_ID, EVENT_ID, new ComplimentaryQuantity(3),
                 SHARD_ID, NOW);
+        CustomerId administratorId = new CustomerId(UUID.fromString("22222222-2222-4222-8222-222222222222"));
 
         // When / Then
-        assertThat(order.grantChange()).isEqualTo(new OrderStatusChange(order.getOrderId(), null,
-                OrderStatus.COMPLIMENTARY, StatusChangeReason.COMPLIMENTARY_GRANTED, ChangeActor.ADMIN, CREATED_AT));
+        assertThat(order.grantChange(administratorId)).isEqualTo(new OrderStatusChange(order.getOrderId(), null,
+                OrderStatus.COMPLIMENTARY, StatusChangeReason.COMPLIMENTARY_GRANTED, ChangeActor.ADMIN, CREATED_AT,
+                "22222222-2222-4222-8222-222222222222"));
     }
 
     @ParameterizedTest

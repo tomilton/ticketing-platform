@@ -69,7 +69,6 @@ class OrderHandlerMetricsTest {
 
     private WebTestClient.ResponseSpec post() {
         return webTestClient.post().uri("/api/v1/orders")
-                .header("X-Customer-Id", UUID.randomUUID().toString())
                 .header("Idempotency-Key", UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON).bodyValue(BODY).exchange();
     }

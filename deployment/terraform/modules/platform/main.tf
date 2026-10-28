@@ -18,13 +18,14 @@ locals {
   ecr_repository_arn      = "arn:aws:ecr:${var.region}:${data.aws_caller_identity.current.account_id}:repository/${var.ecr_repository_name}"
 
   table_names = {
-    events          = "${local.name}-events"
-    inventory       = "${local.name}-inventory"
-    orders          = "${local.name}-orders"
-    order_audit     = "${local.name}-order_audit"
-    idempotency     = "${local.name}-idempotency"
-    customer_limits = "${local.name}-customer_event_limits"
-    scheduler_locks = "${local.name}-scheduler_locks"
+    events                 = "${local.name}-events"
+    inventory              = "${local.name}-inventory"
+    orders                 = "${local.name}-orders"
+    order_audit            = "${local.name}-order_audit"
+    idempotency            = "${local.name}-idempotency"
+    customer_limits        = "${local.name}-customer_event_limits"
+    scheduler_locks        = "${local.name}-scheduler_locks"
+    payment_webhook_events = "${local.name}-payment_webhook_events"
   }
   index_names = {
     events_by_status_date = "by-status-date"
@@ -66,6 +67,28 @@ module "messaging" {
   producer_role_arns         = [module.api.task_role_arn, module.worker.task_role_arn]
   consumer_role_arns         = [module.worker.task_role_arn]
   kms_deletion_window_days   = var.kms_deletion_window_days
+}
+
+module "payment_messaging" {
+  source = "../messaging"
+
+  name                       = "${local.name}-payment"
+  queue_name                 = "${local.name}-payment-confirmed"
+  dead_letter_queue_name     = "${local.name}-payment-confirmed-dlq"
+  visibility_timeout_seconds = local.visibility_timeout
+  max_receive_count          = local.max_receive_count
+  producer_role_arns         = [module.api.task_role_arn]
+  consumer_role_arns         = [module.worker.task_role_arn]
+  kms_deletion_window_days   = var.kms_deletion_window_days
+}
+
+# The value of the webhook secret is set outside Terraform, by whoever agrees it with the payment gateway.
+resource "aws_secretsmanager_secret" "webhook" {
+  #checkov:skip=CKV2_AWS_57:The secret is agreed with the payment gateway and rotated with it, not by a Lambda
+  name                    = "${local.name}/webhook-hmac"
+  description             = "HMAC secret that signs the notices of the payment gateway"
+  kms_key_id              = module.data.kms_key_arn
+  recovery_window_in_days = 7
 }
 
 module "cluster" {

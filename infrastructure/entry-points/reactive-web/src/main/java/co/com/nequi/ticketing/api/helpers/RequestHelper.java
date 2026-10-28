@@ -3,6 +3,7 @@ package co.com.nequi.ticketing.api.helpers;
 import co.com.nequi.ticketing.api.messages.exception.ValidationException;
 import lombok.experimental.UtilityClass;
 import org.springframework.core.codec.DecodingException;
+import org.springframework.core.io.buffer.DataBufferLimitException;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
@@ -17,11 +18,12 @@ import java.util.stream.Stream;
 
 import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.EMPTY_REQUEST_BODY;
 import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.INVALID_JSON;
+import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.PAYLOAD_TOO_LARGE;
 
 /**
  * Reads request bodies. A number that does not fit an integer field, or a text that is not a UUID
  * in a UUID field, is a validation error that names the field; any other body that cannot be read as JSON of the expected type is {@code INVALID_JSON};
- * a missing body is {@code EMPTY_REQUEST_BODY}.
+ * a missing body is {@code EMPTY_REQUEST_BODY}; a body larger than the maximum is {@code PAYLOAD_TOO_LARGE}.
  */
 @UtilityClass
 public class RequestHelper {
@@ -33,9 +35,15 @@ public class RequestHelper {
 
     public static <T> Mono<T> bodyToMonoOrFailWhenEmpty(ServerRequest request, Class<T> type) {
         return request.bodyToMono(type)
+                .onErrorMap(RequestHelper::exceedsMaximumSize, PAYLOAD_TOO_LARGE::build)
                 .onErrorMap(DecodingException.class, RequestHelper::toReadError)
                 .onErrorMap(ResponseStatusException.class, RequestHelper::toReadError)
                 .switchIfEmpty(Mono.defer(() -> Mono.error(EMPTY_REQUEST_BODY.build())));
+    }
+
+    private static Boolean exceedsMaximumSize(Throwable error) {
+        return Stream.iterate(error, cause -> cause != null, Throwable::getCause)
+                .anyMatch(DataBufferLimitException.class::isInstance);
     }
 
     private static RuntimeException toReadError(Throwable error) {

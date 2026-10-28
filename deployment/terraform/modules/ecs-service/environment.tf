@@ -5,8 +5,19 @@
 # the credentials come from the task role.
 
 locals {
+  # Variables that reach the container from Secrets Manager through var.secrets, never as plain environment.
+  secret_names = [
+    "WEBHOOK_HMAC_SECRET",
+  ]
+
   setting_names = [
     "CORS_ALLOWED_ORIGINS",
+    "JWT_JWK_SET_URI",
+    "JWT_ISSUER",
+    "JWT_AUDIENCE",
+    "JWT_ROLES_CLAIM",
+    "JWT_ADMIN_ROLE",
+    "JWT_CLOCK_SKEW",
     "MANAGEMENT_HEALTH_SHOW_COMPONENTS",
     "DYNAMODB_API_CALL_TIMEOUT",
     "DYNAMODB_API_CALL_ATTEMPT_TIMEOUT",
@@ -47,35 +58,50 @@ locals {
   ]
 
   fixed_environment = {
-    APP_PORT                             = tostring(var.container_port)
-    APP_NAME                             = var.name
-    APP_ROLE                             = var.role
-    LOG_STRUCTURED_FORMAT                = "ecs"
-    REACTOR_CONTEXT_PROPAGATION          = "auto"
-    MANAGEMENT_ENDPOINTS_EXPOSURE        = "health,prometheus"
-    MANAGEMENT_HEALTH_PROBES_ENABLED     = "true"
-    ROUTES_BASE_PATH                     = "/api/v1"
-    ROUTES_EVENTS                        = "/events"
-    ROUTES_EVENT_BY_ID                   = "/events/{eventId}"
-    ROUTES_EVENT_AVAILABILITY            = "/events/{eventId}/availability"
-    ROUTES_BATCH_AVAILABILITY            = "/events/availability"
-    ROUTES_AVAILABILITY_STREAM           = "/events/{eventId}/availability/stream"
-    ROUTES_ORDERS                        = "/orders"
-    ROUTES_ORDER_BY_ID                   = "/orders/{orderId}"
-    ROUTES_COMPLIMENTARY                 = "/events/{eventId}/complimentary"
-    AWS_REGION                           = var.region
-    DYNAMODB_EVENTS_TABLE                = var.table_names["events"]
-    DYNAMODB_INVENTORY_TABLE             = var.table_names["inventory"]
-    DYNAMODB_ORDERS_TABLE                = var.table_names["orders"]
-    DYNAMODB_ORDER_AUDIT_TABLE           = var.table_names["order_audit"]
-    DYNAMODB_IDEMPOTENCY_TABLE           = var.table_names["idempotency"]
-    DYNAMODB_CUSTOMER_LIMITS_TABLE       = var.table_names["customer_limits"]
-    DYNAMODB_SCHEDULER_LOCKS_TABLE       = var.table_names["scheduler_locks"]
-    DYNAMODB_EVENTS_BY_STATUS_DATE_INDEX = var.index_names.events_by_status_date
-    DYNAMODB_EXPIRING_RESERVATIONS_INDEX = var.index_names.expiring_reservations
-    DYNAMODB_PENDING_PUBLICATION_INDEX   = var.index_names.pending_publication
-    SQS_ORDER_PLACED_QUEUE               = var.queue.name
-    SQS_ORDER_PLACED_DLQ                 = var.queue.dead_letter_queue_name
+    APP_PORT                               = tostring(var.container_port)
+    APP_NAME                               = var.name
+    APP_ROLE                               = var.role
+    LOG_STRUCTURED_FORMAT                  = "ecs"
+    REACTOR_CONTEXT_PROPAGATION            = "auto"
+    MANAGEMENT_ENDPOINTS_EXPOSURE          = "health,prometheus"
+    MANAGEMENT_HEALTH_PROBES_ENABLED       = "true"
+    JWT_MODE                               = "JWKS"
+    RATE_LIMIT_ORDERS_PER_PERIOD           = "10"
+    RATE_LIMIT_ORDERS_PERIOD               = "PT1M"
+    HTTP_MAX_BODY_SIZE                     = "16KB"
+    WEBHOOK_EVENT_TTL                      = "P7D"
+    WEBHOOK_TOLERANCE                      = "PT5M"
+    PAYMENT_CIRCUIT_FAILURE_RATE_THRESHOLD = "50"
+    PAYMENT_CIRCUIT_SLIDING_WINDOW_SIZE    = "20"
+    PAYMENT_CIRCUIT_MINIMUM_CALLS          = "10"
+    PAYMENT_CIRCUIT_WAIT_IN_OPEN           = "PT30S"
+    PAYMENT_CIRCUIT_HALF_OPEN_CALLS        = "3"
+    ROUTES_BASE_PATH                       = "/api/v1"
+    ROUTES_EVENTS                          = "/events"
+    ROUTES_EVENT_BY_ID                     = "/events/{eventId}"
+    ROUTES_EVENT_AVAILABILITY              = "/events/{eventId}/availability"
+    ROUTES_BATCH_AVAILABILITY              = "/events/availability"
+    ROUTES_AVAILABILITY_STREAM             = "/events/{eventId}/availability/stream"
+    ROUTES_ORDERS                          = "/orders"
+    ROUTES_ORDER_BY_ID                     = "/orders/{orderId}"
+    ROUTES_PAYMENT_WEBHOOK                 = "/webhooks/payments"
+    ROUTES_COMPLIMENTARY                   = "/events/{eventId}/complimentary"
+    AWS_REGION                             = var.region
+    DYNAMODB_EVENTS_TABLE                  = var.table_names["events"]
+    DYNAMODB_INVENTORY_TABLE               = var.table_names["inventory"]
+    DYNAMODB_ORDERS_TABLE                  = var.table_names["orders"]
+    DYNAMODB_ORDER_AUDIT_TABLE             = var.table_names["order_audit"]
+    DYNAMODB_IDEMPOTENCY_TABLE             = var.table_names["idempotency"]
+    DYNAMODB_CUSTOMER_LIMITS_TABLE         = var.table_names["customer_limits"]
+    DYNAMODB_SCHEDULER_LOCKS_TABLE         = var.table_names["scheduler_locks"]
+    DYNAMODB_WEBHOOK_EVENTS_TABLE          = var.table_names["payment_webhook_events"]
+    DYNAMODB_EVENTS_BY_STATUS_DATE_INDEX   = var.index_names.events_by_status_date
+    DYNAMODB_EXPIRING_RESERVATIONS_INDEX   = var.index_names.expiring_reservations
+    DYNAMODB_PENDING_PUBLICATION_INDEX     = var.index_names.pending_publication
+    SQS_ORDER_PLACED_QUEUE                 = var.queue.name
+    SQS_ORDER_PLACED_DLQ                   = var.queue.dead_letter_queue_name
+    SQS_PAYMENT_CONFIRMED_QUEUE            = var.payment_queue.name
+    SQS_PAYMENT_CONFIRMED_DLQ              = var.payment_queue.dead_letter_queue_name
   }
 
   environment = [

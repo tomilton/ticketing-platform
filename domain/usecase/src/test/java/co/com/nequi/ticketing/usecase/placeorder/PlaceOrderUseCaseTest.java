@@ -12,6 +12,7 @@ import co.com.nequi.ticketing.model.exception.BusinessException;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyClaim;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyRecord;
+import co.com.nequi.ticketing.model.idempotency.IdempotencyScope;
 import co.com.nequi.ticketing.model.idempotency.RequestFingerprint;
 import co.com.nequi.ticketing.model.idempotency.gateways.IdempotencyRepository;
 import co.com.nequi.ticketing.model.order.Order;
@@ -58,6 +59,7 @@ class PlaceOrderUseCaseTest {
     private static final Instant NOW = Instant.parse("2026-10-27T10:00:00Z");
     private static final Duration TTL = Duration.ofMinutes(10);
     private static final CustomerId CUSTOMER_ID = new CustomerId(UUID.randomUUID());
+    private static final IdempotencyScope SCOPE = IdempotencyScope.ofCustomer(CUSTOMER_ID);
     private static final IdempotencyKey KEY = new IdempotencyKey(UUID.randomUUID());
     private static final UUID LOCK_TOKEN = UUID.randomUUID();
     private static final Integer SHARD_COUNT = 3;
@@ -130,7 +132,7 @@ class PlaceOrderUseCaseTest {
     void shouldStoreLimitExceededWhenQuantityIsAboveMaxPerOrder() {
         // Given
         PlaceOrderCommand command = new PlaceOrderCommand(CUSTOMER_ID, KEY, EVENT.getEventId(), new Quantity(5));
-        when(idempotencyRepository.claim(CUSTOMER_ID, KEY, RequestFingerprint.of(EVENT.getEventId(), new Quantity(5)),
+        when(idempotencyRepository.claim(SCOPE, KEY, RequestFingerprint.of(EVENT.getEventId(), new Quantity(5)),
                 NOW)).thenReturn(Mono.just(new IdempotencyClaim.Granted(LOCK_TOKEN)));
         givenRejectionIsStored(BusinessErrorMessage.TICKET_LIMIT_EXCEEDED);
 
@@ -278,7 +280,7 @@ class PlaceOrderUseCaseTest {
         when(eventRepository.findById(EVENT.getEventId())).thenReturn(Mono.just(EVENT));
         when(orderRepository.reserve(any(Order.class), eq(EVENT), any(ReservationContext.class), eq(NOW)))
                 .thenReturn(Mono.error(timeout));
-        when(idempotencyRepository.release(CUSTOMER_ID, KEY, LOCK_TOKEN)).thenReturn(Mono.empty());
+        when(idempotencyRepository.release(SCOPE, KEY, LOCK_TOKEN)).thenReturn(Mono.empty());
 
         // When / Then
         StepVerifier.create(useCase.place(COMMAND))
@@ -321,15 +323,15 @@ class PlaceOrderUseCaseTest {
     }
 
     private void givenGrantedKey() {
-        when(idempotencyRepository.claim(CUSTOMER_ID, KEY, FINGERPRINT, NOW))
+        when(idempotencyRepository.claim(SCOPE, KEY, FINGERPRINT, NOW))
                 .thenReturn(Mono.just(new IdempotencyClaim.Granted(LOCK_TOKEN)));
     }
 
     private void givenExistingKey(IdempotencyStatus status, RequestFingerprint fingerprint,
                                   PlacementOutcome outcome) {
-        IdempotencyRecord stored = new IdempotencyRecord(CUSTOMER_ID, KEY, fingerprint, status, UUID.randomUUID(),
+        IdempotencyRecord stored = new IdempotencyRecord(SCOPE, KEY, fingerprint, status, UUID.randomUUID(),
                 NOW.plusSeconds(10), outcome);
-        when(idempotencyRepository.claim(CUSTOMER_ID, KEY, FINGERPRINT, NOW))
+        when(idempotencyRepository.claim(SCOPE, KEY, FINGERPRINT, NOW))
                 .thenReturn(Mono.just(new IdempotencyClaim.Existing(stored)));
     }
 
@@ -339,7 +341,7 @@ class PlaceOrderUseCaseTest {
     }
 
     private void givenRejectionIsStored(BusinessErrorMessage rejection) {
-        when(idempotencyRepository.complete(CUSTOMER_ID, KEY, LOCK_TOKEN, new PlacementOutcome.Rejected(rejection)))
+        when(idempotencyRepository.complete(SCOPE, KEY, LOCK_TOKEN, new PlacementOutcome.Rejected(rejection)))
                 .thenReturn(Mono.empty());
     }
 

@@ -5,10 +5,10 @@ import co.com.nequi.ticketing.model.enums.IdempotencyStatus;
 import co.com.nequi.ticketing.model.enums.OrderStatus;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyRecord;
+import co.com.nequi.ticketing.model.idempotency.IdempotencyScope;
 import co.com.nequi.ticketing.model.idempotency.RequestFingerprint;
 import co.com.nequi.ticketing.model.order.OrderId;
 import co.com.nequi.ticketing.model.order.PlacementOutcome;
-import co.com.nequi.ticketing.model.shared.CustomerId;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
@@ -22,8 +22,9 @@ import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.DYN
 
 /**
  * Maps the items of the idempotency table to {@link IdempotencyRecord} and the definitive outcome
- * of a request to its attributes. The key of an item joins the customer and the key chosen by the
- * customer, because a key belongs to one customer.
+ * of a request to its attributes. The key of an item joins the scope and the key chosen by the
+ * caller, because a key belongs to one scope; the last separator divides them, since an
+ * administrator scope contains the separator too.
  */
 @Component
 public class IdempotencyEntityMapper {
@@ -42,17 +43,16 @@ public class IdempotencyEntityMapper {
     public static final String ACCEPTED = "ACCEPTED";
     public static final String REJECTED = "REJECTED";
     private static final String SEPARATOR = "#";
-    private static final int ID_PARTS = 2;
 
     /**
      * Builds the key of an item.
      *
-     * @param customerId the owner of the key
-     * @param key        the key chosen by the customer
-     * @return {@code customerId#key}
+     * @param scope the owner of the key
+     * @param key   the key chosen by the caller
+     * @return {@code scope#key}
      */
-    public String idempotencyId(CustomerId customerId, IdempotencyKey key) {
-        return customerId.value() + SEPARATOR + key.value();
+    public String idempotencyId(IdempotencyScope scope, IdempotencyKey key) {
+        return scope.value() + SEPARATOR + key.value();
     }
 
     /**
@@ -82,12 +82,13 @@ public class IdempotencyEntityMapper {
      */
     public IdempotencyRecord toDomain(Map<String, AttributeValue> item) {
         try {
-            String[] parts = item.get(IDEMPOTENCY_ID).s().split(SEPARATOR, ID_PARTS);
-            if (parts.length != ID_PARTS) {
-                throw new IllegalArgumentException("Idempotency id must join the customer and the key");
+            String idempotencyId = item.get(IDEMPOTENCY_ID).s();
+            int separator = idempotencyId.lastIndexOf(SEPARATOR);
+            if (separator <= 0) {
+                throw new IllegalArgumentException("Idempotency id must join the scope and the key");
             }
-            return new IdempotencyRecord(new CustomerId(UUID.fromString(parts[0])),
-                    new IdempotencyKey(UUID.fromString(parts[1])),
+            return new IdempotencyRecord(new IdempotencyScope(idempotencyId.substring(0, separator)),
+                    new IdempotencyKey(UUID.fromString(idempotencyId.substring(separator + 1))),
                     new RequestFingerprint(item.get(REQUEST_HASH).s()),
                     IdempotencyStatus.valueOf(item.get(STATUS).s()),
                     UUID.fromString(item.get(LOCK_TOKEN).s()),

@@ -1,6 +1,7 @@
 package co.com.nequi.ticketing.performance;
 
 import co.com.nequi.ticketing.dynamodb.support.LocalStackTestSupport;
+import co.com.nequi.ticketing.security.TestIdentityProvider;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -8,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -45,12 +47,14 @@ class AvailabilityLatencyTest {
     @DynamicPropertySource
     static void dynamoDbProperties(DynamicPropertyRegistry registry) {
         LocalStackTestSupport.springProperties().forEach((name, value) -> registry.add(name, () -> value));
+        registry.add(TestIdentityProvider.JWK_SET_URI_PROPERTY, TestIdentityProvider::jwkSetUri);
     }
 
     @Test
     void shouldAnswerUnderOneHundredMillisecondsAtP99WhenEventAndAvailabilityAreRead() {
         // Given
         String eventId = JsonMapper.builder().build().readTree(webTestClient.post().uri(EVENTS)
+                        .header(HttpHeaders.AUTHORIZATION, TestIdentityProvider.bearer(TestIdentityProvider.admin()))
                         .contentType(MediaType.APPLICATION_JSON).bodyValue(BODY).exchange()
                         .expectStatus().isCreated()
                         .expectBody(String.class).returnResult().getResponseBody())

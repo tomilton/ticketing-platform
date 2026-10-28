@@ -23,6 +23,11 @@ variable "dead_letter_queue_name" {
   type        = string
 }
 
+variable "payment_dead_letter_queue_name" {
+  description = "Name of the dead letter queue of the notices of the payment gateway."
+  type        = string
+}
+
 variable "alb_arn_suffix" {
   description = "Suffix of the ARN of the internal load balancer, the dimension of its metrics."
   type        = string

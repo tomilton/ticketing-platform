@@ -54,7 +54,7 @@ variable "throttling" {
 }
 
 variable "jwt" {
-  description = "JWT authorizer of API Gateway; disabled until feature 004."
+  description = "JWT authorizer of API Gateway for every route but the public ones; enabled in every environment."
   type = object({
     enabled  = bool
     issuer   = string

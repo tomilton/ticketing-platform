@@ -21,13 +21,14 @@ mock_provider "aws" {
 variables {
   name = "ticketing-test"
   table_names = {
-    events          = "events"
-    inventory       = "inventory"
-    orders          = "orders"
-    order_audit     = "order_audit"
-    idempotency     = "idempotency"
-    customer_limits = "customer_event_limits"
-    scheduler_locks = "scheduler_locks"
+    events                 = "events"
+    inventory              = "inventory"
+    orders                 = "orders"
+    order_audit            = "order_audit"
+    idempotency            = "idempotency"
+    customer_limits        = "customer_event_limits"
+    scheduler_locks        = "scheduler_locks"
+    payment_webhook_events = "payment_webhook_events"
   }
   index_names = {
     events_by_status_date = "by-status-date"
@@ -38,14 +39,15 @@ variables {
   kms_deletion_window_days = 7
 }
 
-run "creates_the_seven_tables_of_the_application" {
+run "creates_the_eight_tables_of_the_application" {
   command = plan
 
   assert {
     condition = toset([for table in aws_dynamodb_table.this : table.name]) == toset([
-      "events", "inventory", "orders", "order_audit", "idempotency", "customer_event_limits", "scheduler_locks"
+      "events", "inventory", "orders", "order_audit", "idempotency", "customer_event_limits", "scheduler_locks",
+      "payment_webhook_events"
     ])
-    error_message = "The seven tables must use the names the application reads."
+    error_message = "The eight tables must use the names the application reads."
   }
 
   assert {

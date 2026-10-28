@@ -19,12 +19,13 @@ mock_provider "aws" {
 }
 
 variables {
-  name                   = "ticketing-test"
-  environment            = "test"
-  region                 = "us-east-1"
-  queue_name             = "order-placed"
-  dead_letter_queue_name = "order-placed-dlq"
-  alb_arn_suffix         = "app/ticketing-test-api/1"
+  name                           = "ticketing-test"
+  environment                    = "test"
+  region                         = "us-east-1"
+  queue_name                     = "order-placed"
+  dead_letter_queue_name         = "order-placed-dlq"
+  payment_dead_letter_queue_name = "payment-confirmed-dlq"
+  alb_arn_suffix                 = "app/ticketing-test-api/1"
   table_names = {
     events    = "events"
     inventory = "inventory"
@@ -52,6 +53,11 @@ run "alarms_on_messages_in_the_dead_letter_queue" {
   assert {
     condition     = aws_cloudwatch_metric_alarm.dead_letter_messages.comparison_operator == "GreaterThanThreshold"
     error_message = "The alarm fires from the first message."
+  }
+
+  assert {
+    condition     = aws_cloudwatch_metric_alarm.payment_dead_letter_messages.dimensions.QueueName == "payment-confirmed-dlq" && aws_cloudwatch_metric_alarm.payment_dead_letter_messages.threshold == 0
+    error_message = "A notice of the gateway in its dead letter queue must raise an alarm."
   }
 }
 

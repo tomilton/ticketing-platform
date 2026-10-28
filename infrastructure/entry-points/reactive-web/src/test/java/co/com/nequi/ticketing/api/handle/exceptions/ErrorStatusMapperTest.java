@@ -29,6 +29,11 @@ class ErrorStatusMapperTest {
             "TKT0006, INTERNAL_SERVER_ERROR",
             "TKT0007, SERVICE_UNAVAILABLE",
             "TKT0009, INTERNAL_SERVER_ERROR",
+            "TKT0010, UNAUTHORIZED",
+            "TKT0011, FORBIDDEN",
+            "TKT0012, TOO_MANY_REQUESTS",
+            "TKT0013, UNAUTHORIZED",
+            "TKT0014, CONTENT_TOO_LARGE",
             "TKX9999, INTERNAL_SERVER_ERROR"
     })
     void shouldMapCatalogCodeToHttpStatusWhenCodeIsGiven(String code, HttpStatus expected) {

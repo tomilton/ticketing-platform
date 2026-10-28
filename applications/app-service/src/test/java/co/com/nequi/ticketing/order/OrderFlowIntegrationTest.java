@@ -14,12 +14,14 @@ import co.com.nequi.ticketing.model.shared.CustomerId;
 import co.com.nequi.ticketing.model.shared.EventId;
 import co.com.nequi.ticketing.model.shared.gateways.ClockProvider;
 import co.com.nequi.ticketing.paymentsimulator.PaymentSimulatorGateway;
+import co.com.nequi.ticketing.security.TestIdentityProvider;
 import co.com.nequi.ticketing.sqs.commons.OrderPlacedMessageCodec;
 import co.com.nequi.ticketing.usecase.placeorder.PlaceOrderUseCase;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -40,7 +42,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * End to end flow with an {@code api} and a {@code worker} context against the same LocalStack:
- * SC-003, SC-004, SC-006, US3-6, US3-7, FR-018 and FR-027.
+ * SC-003, SC-004, SC-006, US3-6, US3-7, FR-018 and FR-027 of the orders, and the access to an order
+ * (only its owner or an administrator).
  */
 class OrderFlowIntegrationTest {
 
@@ -83,6 +86,26 @@ class OrderFlowIntegrationTest {
         // Then
         StepVerifier.create(soldEventAvailability)
                 .expectNext("8/2")
+                .expectComplete()
+                .verify(TEST_TIMEOUT);
+    }
+
+    @Test
+    void shouldHideOrderFromAnotherCustomerAndShowItToAdministratorWhenOrderIsRead() {
+        // Given
+        String owner = newId();
+
+        // When
+        Mono<String> statuses = OrderFlowSupport.createEvent(client, 10)
+                .flatMap(eventId -> OrderFlowSupport.placeOrder(client, owner, newId(), eventId, 1))
+                .map(body -> JSON.readTree(body).path("data").path("orderId").asString())
+                .flatMap(orderId -> readStatus(orderId, TestIdentityProvider.customer(newId()))
+                        .zipWith(readStatus(orderId, TestIdentityProvider.admin()),
+                                (otherCustomer, administrator) -> otherCustomer + "/" + administrator));
+
+        // Then
+        StepVerifier.create(statuses)
+                .expectNext("404/200")
                 .expectComplete()
                 .verify(TEST_TIMEOUT);
     }
@@ -195,6 +218,12 @@ class OrderFlowIntegrationTest {
                 .expectNext("TKT0008")
                 .expectComplete()
                 .verify(TEST_TIMEOUT);
+    }
+
+    private static Mono<Integer> readStatus(String orderId, String token) {
+        return client.get().uri("/orders/" + orderId)
+                .header(HttpHeaders.AUTHORIZATION, TestIdentityProvider.bearer(token))
+                .exchangeToMono(response -> response.releaseBody().thenReturn(response.statusCode().value()));
     }
 
     private static Mono<Void> duplicate(OrderPlacedMessageCodec codec, String orderId, String eventId) {

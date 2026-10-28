@@ -8,6 +8,7 @@ import co.com.nequi.ticketing.api.config.RouteProperties;
 import co.com.nequi.ticketing.api.handle.exceptions.ErrorResponseBuilder;
 import co.com.nequi.ticketing.api.handle.exceptions.ErrorStatusMapper;
 import co.com.nequi.ticketing.api.handle.exceptions.GlobalErrorWebExceptionHandler;
+import co.com.nequi.ticketing.api.support.SecurityTestConfig;
 import co.com.nequi.ticketing.model.inventory.EventInventory;
 import co.com.nequi.ticketing.model.shared.EventId;
 import co.com.nequi.ticketing.usecase.getavailability.GetAvailabilityUseCase;
@@ -154,7 +155,7 @@ class AvailabilityStreamRouteIntegrationTest {
     @Configuration
     @EnableConfigurationProperties({RouteProperties.class, AvailabilityBatchProperties.class,
             AvailabilityStreamProperties.class})
-    @Import({AvailabilityRouterRest.class, AvailabilityHandler.class, AvailabilityStreamHub.class,
+    @Import({SecurityTestConfig.class, AvailabilityRouterRest.class, AvailabilityHandler.class, AvailabilityStreamHub.class,
             AvailabilityMapperImpl.class, AvailabilityMapManagement.class, GlobalErrorWebExceptionHandler.class,
             ErrorResponseBuilder.class, ErrorStatusMapper.class})
     static class StreamRouteTestConfig {

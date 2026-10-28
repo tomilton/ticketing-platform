@@ -22,6 +22,22 @@ resource "aws_cloudwatch_metric_alarm" "dead_letter_messages" {
   ok_actions          = [aws_sns_topic.alerts.arn]
 }
 
+resource "aws_cloudwatch_metric_alarm" "payment_dead_letter_messages" {
+  alarm_name          = "${var.name}-payment-dead-letter-messages"
+  alarm_description   = "Notices of the payment gateway that could not be applied; each one needs a review"
+  namespace           = "AWS/SQS"
+  metric_name         = "ApproximateNumberOfMessagesVisible"
+  dimensions          = { QueueName = var.payment_dead_letter_queue_name }
+  statistic           = "Maximum"
+  period              = local.period_seconds
+  evaluation_periods  = 1
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+}
+
 resource "aws_cloudwatch_metric_alarm" "oldest_message_age" {
   alarm_name          = "${var.name}-oldest-message-age"
   alarm_description   = "Accepted orders wait too long for the worker"

@@ -1,4 +1,4 @@
-# The seven tables of the application, with the same keys, indexes and TTL that
+# The eight tables of the application, with the same keys, indexes and TTL that
 # deployment/localstack/init/ready.d/01-dynamodb.sh creates locally. On-demand capacity, point-in-time
 # recovery and encryption with a customer managed key.
 
@@ -72,6 +72,13 @@ locals {
       attributes = { lockName = "S" }
       indexes    = []
       ttl        = false
+    }
+    payment_webhook_events = {
+      hash_key   = "eventId"
+      range_key  = null
+      attributes = { eventId = "S" }
+      indexes    = []
+      ttl        = true
     }
   }
 }

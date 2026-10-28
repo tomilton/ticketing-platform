@@ -8,10 +8,10 @@ import co.com.nequi.ticketing.model.enums.IdempotencyStatus;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyClaim;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyKey;
 import co.com.nequi.ticketing.model.idempotency.IdempotencyRecord;
+import co.com.nequi.ticketing.model.idempotency.IdempotencyScope;
 import co.com.nequi.ticketing.model.idempotency.RequestFingerprint;
 import co.com.nequi.ticketing.model.idempotency.gateways.IdempotencyRepository;
 import co.com.nequi.ticketing.model.order.PlacementOutcome;
-import co.com.nequi.ticketing.model.shared.CustomerId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
@@ -61,17 +61,17 @@ public class IdempotencyDynamoRepository implements IdempotencyRepository {
     private final IdempotencySettings settings;
 
     @Override
-    public Mono<IdempotencyClaim> claim(CustomerId customerId, IdempotencyKey key, RequestFingerprint fingerprint,
+    public Mono<IdempotencyClaim> claim(IdempotencyScope scope, IdempotencyKey key, RequestFingerprint fingerprint,
                                         Instant now) {
-        return put(newClaim(customerId, key, fingerprint, now), NEW_OR_EXPIRED_CONDITION,
+        return put(newClaim(scope, key, fingerprint, now), NEW_OR_EXPIRED_CONDITION,
                 Map.of(":nowSeconds", AttributeValue.fromN(String.valueOf(now.getEpochSecond()))), Map.of())
-                .onErrorResume(ConditionalCheckFailedException.class, taken -> read(customerId, key)
+                .onErrorResume(ConditionalCheckFailedException.class, taken -> read(scope, key)
                         .flatMap(stored -> reclaimIfLeaseEnded(stored, fingerprint, now)))
                 .onErrorMap(this::toTechnicalException);
     }
 
     @Override
-    public Mono<Void> complete(CustomerId customerId, IdempotencyKey key, UUID lockToken, PlacementOutcome outcome) {
+    public Mono<Void> complete(IdempotencyScope scope, IdempotencyKey key, UUID lockToken, PlacementOutcome outcome) {
         Map<String, AttributeValue> attributes = mapper.outcomeAttributes(outcome);
         Map<String, AttributeValue> values = new HashMap<>(heldValues(lockToken));
         attributes.forEach((name, value) -> values.put(":" + name, value));
@@ -82,7 +82,7 @@ public class IdempotencyDynamoRepository implements IdempotencyRepository {
                     log.debug("DynamoDB UpdateItem, table={}, operation=complete", properties.idempotencyTable());
                     return client.updateItem(UpdateItemRequest.builder()
                             .tableName(properties.idempotencyTable())
-                            .key(key(customerId, key))
+                            .key(key(scope, key))
                             .updateExpression("SET #status = :completed, " + setOutcome)
                             .conditionExpression(HELD_CONDITION)
                             .expressionAttributeNames(STATUS_NAME)
@@ -98,12 +98,12 @@ public class IdempotencyDynamoRepository implements IdempotencyRepository {
     }
 
     @Override
-    public Mono<Void> release(CustomerId customerId, IdempotencyKey key, UUID lockToken) {
+    public Mono<Void> release(IdempotencyScope scope, IdempotencyKey key, UUID lockToken) {
         return Mono.fromFuture(() -> {
                     log.debug("DynamoDB DeleteItem, table={}, operation=release", properties.idempotencyTable());
                     return client.deleteItem(DeleteItemRequest.builder()
                             .tableName(properties.idempotencyTable())
-                            .key(key(customerId, key))
+                            .key(key(scope, key))
                             .conditionExpression(HELD_CONDITION)
                             .expressionAttributeNames(STATUS_NAME)
                             .expressionAttributeValues(heldValues(lockToken))
@@ -122,13 +122,13 @@ public class IdempotencyDynamoRepository implements IdempotencyRepository {
         return Mono.just(stored)
                 .filter(candidate -> candidate.status() == IdempotencyStatus.IN_PROGRESS
                         && !candidate.isLeaseActive(now) && candidate.matches(fingerprint))
-                .flatMap(expired -> put(newClaim(expired.customerId(), expired.key(), fingerprint, now),
+                .flatMap(expired -> put(newClaim(expired.scope(), expired.key(), fingerprint, now),
                         EXPIRED_LEASE_CONDITION,
                         Map.of(":inProgress", IN_PROGRESS,
                                 ":previousToken", AttributeValue.fromS(expired.lockToken().toString())),
                         STATUS_NAME)
                         .onErrorResume(ConditionalCheckFailedException.class, taken ->
-                                read(expired.customerId(), expired.key()).map(IdempotencyClaim.Existing::new)))
+                                read(expired.scope(), expired.key()).map(IdempotencyClaim.Existing::new)))
                 .defaultIfEmpty(new IdempotencyClaim.Existing(stored));
     }
 
@@ -149,12 +149,12 @@ public class IdempotencyDynamoRepository implements IdempotencyRepository {
                 .thenReturn(new IdempotencyClaim.Granted(UUID.fromString(item.get(LOCK_TOKEN).s())));
     }
 
-    private Mono<IdempotencyRecord> read(CustomerId customerId, IdempotencyKey key) {
+    private Mono<IdempotencyRecord> read(IdempotencyScope scope, IdempotencyKey key) {
         return Mono.fromFuture(() -> {
                     log.debug("DynamoDB GetItem, table={}, operation=readClaim", properties.idempotencyTable());
                     return client.getItem(GetItemRequest.builder()
                             .tableName(properties.idempotencyTable())
-                            .key(key(customerId, key))
+                            .key(key(scope, key))
                             .consistentRead(Boolean.TRUE)
                             .build());
                 })
@@ -164,10 +164,10 @@ public class IdempotencyDynamoRepository implements IdempotencyRepository {
                 .switchIfEmpty(Mono.defer(() -> Mono.error(DYNAMODB_ERROR.build())));
     }
 
-    private Map<String, AttributeValue> newClaim(CustomerId customerId, IdempotencyKey key,
+    private Map<String, AttributeValue> newClaim(IdempotencyScope scope, IdempotencyKey key,
                                                  RequestFingerprint fingerprint, Instant now) {
         return Map.of(
-                IDEMPOTENCY_ID, AttributeValue.fromS(mapper.idempotencyId(customerId, key)),
+                IDEMPOTENCY_ID, AttributeValue.fromS(mapper.idempotencyId(scope, key)),
                 REQUEST_HASH, AttributeValue.fromS(fingerprint.value()),
                 STATUS, IN_PROGRESS,
                 LOCK_TOKEN, AttributeValue.fromS(UUID.randomUUID().toString()),
@@ -175,8 +175,8 @@ public class IdempotencyDynamoRepository implements IdempotencyRepository {
                 EXPIRES_AT, AttributeValue.fromN(String.valueOf(now.plus(settings.ttl()).getEpochSecond())));
     }
 
-    private Map<String, AttributeValue> key(CustomerId customerId, IdempotencyKey key) {
-        return Map.of(IDEMPOTENCY_ID, AttributeValue.fromS(mapper.idempotencyId(customerId, key)));
+    private Map<String, AttributeValue> key(IdempotencyScope scope, IdempotencyKey key) {
+        return Map.of(IDEMPOTENCY_ID, AttributeValue.fromS(mapper.idempotencyId(scope, key)));
     }
 
     private static Map<String, AttributeValue> heldValues(UUID lockToken) {
