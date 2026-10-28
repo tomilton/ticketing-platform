@@ -79,10 +79,10 @@ class PaymentNoticeRaceIntegrationTest {
                                 PaymentResult.APPROVED, now)).subscribeOn(Schedulers.parallel()))
                         .concatWithValues(charge.process(order.getOrderId()).subscribeOn(Schedulers.parallel()))
                         .flatMap(attempt -> attempt)
-                        .then(orderRepository.findById(order.getOrderId()))
-                        .zipWith(inventory(order), (stored, inventory) -> stored.getStatus() + "/"
-                                + inventory.available() + "/" + inventory.sold())
-                        .zipWith(auditRecords(order.getOrderId()), (summary, records) -> summary + "/" + records));
+                        .then(Mono.defer(() -> orderRepository.findById(order.getOrderId())
+                                .zipWith(inventory(order), (stored, inventory) -> stored.getStatus() + "/"
+                                        + inventory.available() + "/" + inventory.sold())
+                                .zipWith(auditRecords(order.getOrderId()), (summary, records) -> summary + "/" + records))));
 
         // Then
         StepVerifier.create(result)
