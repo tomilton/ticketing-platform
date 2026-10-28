@@ -134,22 +134,30 @@ catálogo (`TKS` éxito, `TKB` negocio, `TKT` técnico).
 
 | Método | Ruta | Respuesta |
 | --- | --- | --- |
-| `POST` | `/events` | 201, crea un evento con su inventario |
+| `POST` | `/events` | 201, crea un evento con su inventario (rol administrador) |
 | `GET` | `/events?limit=&cursor=` | 200, eventos activos con fecha futura, paginados |
 | `GET` | `/events/{eventId}` | 200, un evento |
 | `GET` | `/events/{eventId}/availability` | 200, disponibilidad con lectura fuerte |
 | `GET` | `/events/availability?ids=` | 200, disponibilidad de hasta 100 eventos |
 | `GET` | `/events/{eventId}/availability/stream` | SSE, disponibilidad en vivo |
-| `POST` | `/orders` | 202, reserva y acepta la orden (`X-Customer-Id`, `Idempotency-Key`) |
-| `GET` | `/orders/{orderId}` | 200, la orden con el estado de cada entrada (solo su dueño) |
-| `POST` | `/events/{eventId}/complimentary` | 201, entradas de cortesía (rol administrador desde la feature 004) |
+| `POST` | `/orders` | 202, reserva y acepta la orden (`Authorization`, `Idempotency-Key`) |
+| `GET` | `/orders/{orderId}` | 200, la orden con el estado de cada entrada (su dueño o un administrador) |
+| `POST` | `/events/{eventId}/complimentary` | 201, entradas de cortesía (rol administrador, `Idempotency-Key`) |
+| `POST` | `/webhooks/payments` | 200, aviso de la pasarela firmado con HMAC (`X-Timestamp`, `X-Signature`) |
+
+Las lecturas del catálogo y de la disponibilidad, `/actuator/health` y el webhook son públicos; el
+resto exige `Authorization: Bearer <JWT>`. La identidad del cliente es el `sub` del token y el rol de
+administrador sale del claim `cognito:groups` (`JWT_ROLES_CLAIM`, `JWT_ADMIN_ROLE`).
 
 ```bash
 BASE=http://localhost:8080/api/v1
 CUSTOMER=11111111-1111-4111-8111-111111111111
+# Tokens de desarrollo firmados con JWT_LOCAL_SECRET (solo con el perfil local de docker compose)
+TOKEN=$(deployment/local/token.sh $CUSTOMER)
+ADMIN=$(deployment/local/token.sh 33333333-3333-4333-8333-333333333333 admin)
 
 # Crear un evento (201, TKS0002)
-EVENT=$(curl -s -X POST $BASE/events -H 'Content-Type: application/json' \
+EVENT=$(curl -s -X POST $BASE/events -H 'Content-Type: application/json' -H "Authorization: Bearer $ADMIN" \
   -d '{"name":"Rock al Parque 2027","venue":{"name":"Movistar Arena","city":"Bogota"},"date":"2027-03-20T01:00:00Z","capacity":500}' \
   | sed -E 's/.*"eventId":"([^"]+)".*/\1/')
 
@@ -166,20 +174,49 @@ curl -N $BASE/events/$EVENT/availability/stream
 # Repetir con la misma Idempotency-Key y el mismo body devuelve exactamente la misma respuesta.
 KEY=$(uuidgen)
 ORDER=$(curl -s -X POST $BASE/orders -H 'Content-Type: application/json' \
-  -H "X-Customer-Id: $CUSTOMER" -H "Idempotency-Key: $KEY" \
+  -H "Authorization: Bearer $TOKEN" -H "Idempotency-Key: $KEY" \
   -d "{\"eventId\":\"$EVENT\",\"quantity\":2}" | sed -E 's/.*"orderId":"([^"]+)".*/\1/')
 
 # Consultar la orden propia: RESERVED, luego SOLD cuando el worker la procesa
-curl -s $BASE/orders/$ORDER -H "X-Customer-Id: $CUSTOMER"
+curl -s $BASE/orders/$ORDER -H "Authorization: Bearer $TOKEN"
 
 # Asignar 3 entradas de cortesía a un cliente (201, orden COMPLIMENTARY)
 curl -s -X POST $BASE/events/$EVENT/complimentary -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $ADMIN" -H "Idempotency-Key: $(uuidgen)" \
   -d "{\"customerId\":\"$CUSTOMER\",\"quantity\":3}"
+
+# Aviso firmado de la pasarela: HMAC-SHA256 en hexadecimal de "timestamp.body" con WEBHOOK_HMAC_SECRET
+BODY="{\"eventId\":\"$(uuidgen)\",\"orderId\":\"$ORDER\",\"status\":\"APPROVED\",\"occurredAt\":\"$(date -u +%FT%TZ)\"}"
+TS=$(date +%s)
+SIG=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "development-only-webhook-secret-change-me" -r | cut -d' ' -f1)
+curl -s -X POST $BASE/webhooks/payments -H 'Content-Type: application/json' \
+  -H "X-Timestamp: $TS" -H "X-Signature: $SIG" -d "$BODY"
 ```
 
 Errores frecuentes: `TKB0001` evento inexistente (404), `TKB0003` agotado (409), `TKB0004` límite
 por cliente (422), `TKB0005` llave reutilizada con otro body (422), `TKB0007` evento no a la venta
-(409), `TKT0001` validación con el nombre del campo (400).
+(409), `TKT0001` validación con el nombre del campo (400), `TKT0010` sin token o token inválido (401,
+con `WWW-Authenticate: Bearer`), `TKT0011` sin rol de administrador (403), `TKT0012` más de 10
+compras por minuto del mismo cliente (429, con `Retry-After`), `TKT0013` firma del webhook inválida
+(401) y `TKT0014` body de más de 16 KB (413).
+
+### Seguridad y resiliencia (feature 004)
+
+- **JWT:** en AWS la API valida los tokens del proveedor de identidad por JWKS (`JWT_MODE=JWKS`, con
+  emisor, audiencia y vencimiento); API Gateway además exige el token en las rutas protegidas. En
+  local, y solo con el perfil `local`, acepta tokens HS256 de desarrollo (`deployment/local/token.sh`
+  o la colección de Postman); si `LOCAL_HS256` se usa sin ese perfil, la aplicación no arranca.
+- **Órdenes ajenas:** otro cliente recibe 404 `TKB0002`, igual que una orden inexistente; un
+  administrador puede consultarla.
+- **Cortesías idempotentes:** la llave del administrador se cierra en la misma transacción que la
+  asignación, y la auditoría guarda su `sub` como `actorId`.
+- **Circuit breaker:** cobros y reembolsos comparten un circuito (50 % de fallos en 20 llamadas, 30 s
+  abierto); con el circuito abierto el mensaje vuelve a la cola con `TKT0007`. Cada cambio queda en el
+  log (`Payment gateway circuit OPEN`) y en la métrica `payment_gateway_circuit_state`.
+- **Webhook:** un aviso válido se encola en `payment-confirmed` y el worker lo aplica por el estado de
+  la orden, con las mismas transiciones condicionales del cobro en línea. Para verlo en local, el
+  worker con `PAYMENT_SIMULATOR_MODE=SLOW` deja la orden en `PENDING_CONFIRMATION` y el aviso firmado la
+  pasa a `SOLD`.
 
 El worker y la cola de mensajes fallidos se revisan así:
 
@@ -257,9 +294,10 @@ devolverlo. Es el comportamiento normal de SQS; la orden se procesa al reaparece
 ## Colección de Postman
 
 [`postman/ticketing-platform.postman_collection.json`](postman/ticketing-platform.postman_collection.json)
-trae los 6 flujos del RFC con sus aserciones: venta aprobada, pago rechazado, agotado, reintento
-idempotente, reserva que vence, y catálogo con disponibilidad y cortesías. Los 6 pasan con Newman
-contra `docker compose up`. Se importa en Postman junto
+trae los flujos del RFC con sus aserciones: venta aprobada, pago rechazado, agotado, reintento
+idempotente, reserva que vence, catálogo con disponibilidad y cortesías, webhook firmado y seguridad
+(401, 403, 429 y 413). La colección firma sus propios tokens HS256 y la firma del webhook con los
+secretos de desarrollo del entorno local. Se importa en Postman junto
 con [`postman/local.postman_environment.json`](postman/local.postman_environment.json), o se corre sin
 instalar nada con Newman en contenedor:
 
@@ -268,7 +306,7 @@ docker run --rm -v "$PWD/postman":/etc/newman postman/newman:6.1.3-alpine \
   run ticketing-platform.postman_collection.json -e local.postman_environment.json \
   --env-var baseUrl=http://host.docker.internal:8080/api/v1 --delay-request 500 \
   --folder "1. Venta aprobada" --folder "3. Agotado (409)" --folder "4. Reintento idempotente" \
-  --folder "6. Catálogo, disponibilidad y cortesías"
+  --folder "6. Catálogo, disponibilidad y cortesías" --folder "8. Webhook firmado" --folder "9. Seguridad"
 ```
 
 En Linux, cambiar `host.docker.internal` por `localhost` y agregar `--network host`. El flujo 2
@@ -365,11 +403,12 @@ imagen) y los comandos para desplegar.
 
 ## Limitaciones conocidas y qué cambiaría en producción
 
-- **Sin autenticación todavía:** la identidad del cliente llega en `X-Customer-Id` y la ruta de
-  cortesías no verifica el rol de administrador. La feature 004 agrega JWT, rol de administrador,
-  rate limiting y webhook firmado.
-- **Cortesías no idempotentes:** repetir la solicitud asigna de nuevo. Se agregará una llave de
-  idempotencia junto con el rol de administrador.
+- **Proveedor de identidad externo:** la plataforma solo valida tokens; el emisor, la audiencia y el
+  JWKS de cada ambiente son variables de Terraform (Cognito u otro OIDC).
+- **Rate limit por réplica:** el límite de 10 compras por minuto vive en la memoria de cada réplica;
+  el límite global lo ponen WAF y el throttling de API Gateway.
+- **Avisos duplicados simultáneos:** dos copias que llegan a la vez pueden encolarse ambas; el worker
+  las aplica por el estado de la orden, así que la segunda no tiene efecto.
 - **Latencia bajo concurrencia en local:** con 20 compras simultáneas el p99 de `POST /orders` sube a
   ~1 s, y `./gradlew performanceTest` no pasa en un equipo de desarrollo. No viene del código: una
   lectura simple también pasa de 17 ms a 337 ms con esa concurrencia, porque la app, LocalStack y
@@ -391,7 +430,7 @@ imagen) y los comandos para desplegar.
 | 002 | Compra con reserva atómica, idempotencia, cola con DLQ, worker, simulador de pagos y consulta de la orden | Entregada |
 | 003 | Barrido de reservas vencidas con lock distribuido y entradas de cortesía | Entregada |
 | 003b | Modos de demostración del simulador (lento, aleatorio, caído) | Entregada |
-| 004 | Seguridad y resiliencia: JWT, rol de administrador, rate limiting, webhook firmado, circuit breaker | Siguiente |
+| 004 | Seguridad y resiliencia: JWT, rol de administrador, rate limiting, webhook firmado, circuit breaker | Entregada |
 | 005 | Infraestructura en AWS con Terraform | Entregada |
 
 ## Documentación

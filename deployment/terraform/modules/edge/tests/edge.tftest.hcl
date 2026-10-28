@@ -133,7 +133,7 @@ run "has_no_authorizer_until_jwt_is_enabled" {
 
   assert {
     condition     = length(aws_apigatewayv2_authorizer.jwt) == 0 && alltrue([for route in aws_apigatewayv2_route.this : route.authorization_type == "NONE"])
-    error_message = "Without JWT the routes stay open, as the API reads X-Customer-Id until feature 004."
+    error_message = "Without var.jwt.enabled no route uses the authorizer."
   }
 }
 

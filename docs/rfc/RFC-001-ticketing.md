@@ -725,7 +725,7 @@ La colección de Postman incluye un flujo "Reserva que vence": crear un evento d
 - [ ] API WebFlux, manejador global de errores, idempotencia, disponibilidad por lote, SSE
 - [ ] Barrido con lock condicional y re-publicado (outbox liviano)
 - [ ] Simulador de pagos con modos `APPROVE` / `DECLINE` / `PENDING`, TTL e intervalo configurables
-- [ ] Seguridad: JWT, rate limiting, webhook HMAC
+- [x] Seguridad: JWT, rate limiting, webhook HMAC
 - [ ] `docker-compose.yml`, scripts de LocalStack, Dockerfile
 - [ ] Prueba de concurrencia y cobertura de 90 % o más
 - [ ] README, colección Postman (incluye el flujo "Reserva que vence") y diagramas
@@ -751,10 +751,10 @@ El repositorio se construye por features con Spec-Driven Development. Cada una s
 | 002 | Compra con reserva atómica, idempotencia, cola con DLQ, worker, simulador de pagos y consulta de la orden | Entregada |
 | 003 | Barrido de reservas vencidas con lock distribuido y entradas de cortesía | Entregada |
 | 003b | Modos de demostración del simulador (lento, aleatorio, caído) | Entregada |
-| 004 | Seguridad y resiliencia: JWT, rol de administrador, rate limiting, webhook firmado, circuit breaker | Siguiente |
+| 004 | Seguridad y resiliencia: JWT, rol de administrador, rate limiting, webhook firmado, circuit breaker | Entregada |
 | 005 | Infraestructura en AWS con Terraform | Entregada |
 
-La sección 8 describe el diseño completo de la feature 004, que se incorpora después. La sección 9 corresponde a la feature 005, entregada como código de Terraform validado sin cuenta de AWS: formato, validación, linters, análisis de seguridad y pruebas nativas.
+La sección 8 describe el diseño de la feature 004, ya entregada: JWT con JWKS (HS256 solo en local), rol de administrador, órdenes visibles solo para su dueño o un administrador, rate limit por cliente, tamaño máximo del body, cortesías idempotentes, circuit breaker en la pasarela y webhook firmado con HMAC que el worker aplica por el estado de la orden. La sección 9 corresponde a la feature 005, entregada como código de Terraform validado sin cuenta de AWS: formato, validación, linters, análisis de seguridad y pruebas nativas.
 
 ### Fuentes
 
