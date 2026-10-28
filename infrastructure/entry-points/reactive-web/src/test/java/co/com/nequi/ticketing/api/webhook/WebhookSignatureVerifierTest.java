@@ -68,6 +68,16 @@ class WebhookSignatureVerifierTest {
     }
 
     @ParameterizedTest
+    @ValueSource(longs = {-300, 300})
+    void shouldAcceptNoticeWhenTimestampIsAtTheEdgeOfTolerance(Long offsetSeconds) {
+        // Given
+        String timestamp = String.valueOf(NOW.getEpochSecond() + offsetSeconds);
+
+        // When / Then
+        assertThat(verifier.isAuthentic(timestamp, sign(SECRET, timestamp, BODY), BODY, NOW)).isTrue();
+    }
+
+    @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = {"yesterday", "1.5"})
     void shouldRejectNoticeWhenTimestampIsNotEpochSeconds(String timestamp) {
