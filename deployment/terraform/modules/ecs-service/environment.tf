@@ -64,6 +64,7 @@ locals {
     RATE_LIMIT_ORDERS_PER_PERIOD           = "10"
     RATE_LIMIT_ORDERS_PERIOD               = "PT1M"
     HTTP_MAX_BODY_SIZE                     = "16KB"
+    WEBHOOK_EVENT_TTL                      = "P7D"
     PAYMENT_CIRCUIT_FAILURE_RATE_THRESHOLD = "50"
     PAYMENT_CIRCUIT_SLIDING_WINDOW_SIZE    = "20"
     PAYMENT_CIRCUIT_MINIMUM_CALLS          = "10"

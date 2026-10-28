@@ -5,6 +5,7 @@ import co.com.nequi.ticketing.model.config.ComplimentarySettings;
 import co.com.nequi.ticketing.model.config.IdempotencySettings;
 import co.com.nequi.ticketing.model.config.InventorySettings;
 import co.com.nequi.ticketing.model.config.OrderSettings;
+import co.com.nequi.ticketing.model.config.PaymentNotificationSettings;
 import co.com.nequi.ticketing.model.config.SweepSettings;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -22,7 +23,7 @@ import java.util.UUID;
 @EnableConfigurationProperties({BusinessSettingsConfig.InventoryProperties.class,
         BusinessSettingsConfig.AvailabilityProperties.class, BusinessSettingsConfig.OrderProperties.class,
         BusinessSettingsConfig.IdempotencyProperties.class, BusinessSettingsConfig.SweepProperties.class,
-        BusinessSettingsConfig.ComplimentaryProperties.class})
+        BusinessSettingsConfig.ComplimentaryProperties.class, BusinessSettingsConfig.PaymentNotificationProperties.class})
 public class BusinessSettingsConfig {
 
     @Bean
@@ -64,6 +65,11 @@ public class BusinessSettingsConfig {
     @Bean
     public ComplimentarySettings complimentarySettings(ComplimentaryProperties properties) {
         return new ComplimentarySettings(properties.maxPerGrant());
+    }
+
+    @Bean
+    public PaymentNotificationSettings paymentNotificationSettings(PaymentNotificationProperties properties) {
+        return new PaymentNotificationSettings(properties.eventTtl());
     }
 
     /**
@@ -126,5 +132,14 @@ public class BusinessSettingsConfig {
      */
     @ConfigurationProperties("complimentary")
     public record ComplimentaryProperties(Integer maxPerGrant) {
+    }
+
+    /**
+     * The business part of the {@code webhook} block.
+     *
+     * @param eventTtl how long a received notice of the payment gateway is remembered
+     */
+    @ConfigurationProperties("webhook")
+    public record PaymentNotificationProperties(Duration eventTtl) {
     }
 }

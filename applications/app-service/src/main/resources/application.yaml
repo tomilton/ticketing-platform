@@ -24,6 +24,8 @@ security:
     roles-claim: ${JWT_ROLES_CLAIM}
     admin-role: ${JWT_ADMIN_ROLE}
     clock-skew: ${JWT_CLOCK_SKEW}
+webhook:
+  event-ttl: ${WEBHOOK_EVENT_TTL}
 rate-limit:
   orders:
     limit-for-period: ${RATE_LIMIT_ORDERS_PER_PERIOD}

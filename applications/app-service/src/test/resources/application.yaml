@@ -26,6 +26,8 @@ security:
     roles-claim: cognito:groups
     admin-role: ticketing-admin
     clock-skew: 60s
+webhook:
+  event-ttl: 7d
 rate-limit:
   orders:
     limit-for-period: 1000
