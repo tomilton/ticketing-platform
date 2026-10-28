@@ -11,5 +11,7 @@ public enum ProcessingOutcome {
     /** The reservation ended before the sale; the tickets were released. */
     EXPIRED,
     /** The order was already final or another copy of the message won the race. */
-    IGNORED
+    IGNORED,
+    /** The notice of the payment arrived before the payment was requested; it is applied in a later delivery. */
+    DEFERRED
 }
