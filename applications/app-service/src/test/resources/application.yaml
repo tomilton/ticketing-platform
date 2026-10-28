@@ -49,6 +49,7 @@ adapters:
     orders-table: orders
     order-audit-table: order_audit
     idempotency-table: idempotency
+    webhook-events-table: payment_webhook_events
     customer-limits-table: customer_event_limits
     expiring-reservations-index: expiring-reservations
     pending-publication-index: pending-publication

@@ -51,6 +51,7 @@ adapters:
     orders-table: ${DYNAMODB_ORDERS_TABLE}
     order-audit-table: ${DYNAMODB_ORDER_AUDIT_TABLE}
     idempotency-table: ${DYNAMODB_IDEMPOTENCY_TABLE}
+    webhook-events-table: ${DYNAMODB_WEBHOOK_EVENTS_TABLE}
     customer-limits-table: ${DYNAMODB_CUSTOMER_LIMITS_TABLE}
     expiring-reservations-index: ${DYNAMODB_EXPIRING_RESERVATIONS_INDEX}
     pending-publication-index: ${DYNAMODB_PENDING_PUBLICATION_INDEX}

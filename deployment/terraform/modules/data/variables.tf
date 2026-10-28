@@ -4,15 +4,16 @@ variable "name" {
 }
 
 variable "table_names" {
-  description = "Names of the seven tables, the same the application reads from its DYNAMODB_*_TABLE variables."
+  description = "Names of the eight tables, the same the application reads from its DYNAMODB_*_TABLE variables."
   type = object({
-    events          = string
-    inventory       = string
-    orders          = string
-    order_audit     = string
-    idempotency     = string
-    customer_limits = string
-    scheduler_locks = string
+    events                 = string
+    inventory              = string
+    orders                 = string
+    order_audit            = string
+    idempotency            = string
+    customer_limits        = string
+    scheduler_locks        = string
+    payment_webhook_events = string
   })
 }
 

@@ -104,12 +104,12 @@ variable "log_retention_days" {
 }
 
 variable "table_names" {
-  description = "Names of the seven tables, by logical name."
+  description = "Names of the eight tables, by logical name."
   type        = map(string)
 }
 
 variable "table_arns" {
-  description = "ARNs of the seven tables, by logical name."
+  description = "ARNs of the eight tables, by logical name."
   type        = map(string)
 }
 

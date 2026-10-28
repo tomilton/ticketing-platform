@@ -18,13 +18,14 @@ locals {
   ecr_repository_arn      = "arn:aws:ecr:${var.region}:${data.aws_caller_identity.current.account_id}:repository/${var.ecr_repository_name}"
 
   table_names = {
-    events          = "${local.name}-events"
-    inventory       = "${local.name}-inventory"
-    orders          = "${local.name}-orders"
-    order_audit     = "${local.name}-order_audit"
-    idempotency     = "${local.name}-idempotency"
-    customer_limits = "${local.name}-customer_event_limits"
-    scheduler_locks = "${local.name}-scheduler_locks"
+    events                 = "${local.name}-events"
+    inventory              = "${local.name}-inventory"
+    orders                 = "${local.name}-orders"
+    order_audit            = "${local.name}-order_audit"
+    idempotency            = "${local.name}-idempotency"
+    customer_limits        = "${local.name}-customer_event_limits"
+    scheduler_locks        = "${local.name}-scheduler_locks"
+    payment_webhook_events = "${local.name}-payment_webhook_events"
   }
   index_names = {
     events_by_status_date = "by-status-date"
