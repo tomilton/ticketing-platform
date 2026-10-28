@@ -1819,7 +1819,7 @@
                   "const header = base64Url(CryptoJS.enc.Utf8.parse(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));",
                   "const payload = base64Url(CryptoJS.enc.Utf8.parse(JSON.stringify({ iss: pm.environment.get('jwtIssuer'), aud: pm.environment.get('jwtAudience'), sub: pm.collectionVariables.get('limitedCustomerId'), iat: now, exp: now + 3600 })));",
                   "pm.collectionVariables.set('limitedCustomerToken', header + '.' + payload + '.' + base64Url(CryptoJS.HmacSHA256(header + '.' + payload, pm.environment.get('jwtSecret'))));",
-                  "for (let purchase = 0; purchase < 10; purchase++) { pm.sendRequest({ url: pm.environment.get('baseUrl') + '/orders', method: 'POST', header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('limitedCustomerToken'), 'Idempotency-Key': crypto.randomUUID() }, body: { mode: 'raw', raw: JSON.stringify({ eventId: pm.collectionVariables.get('eventSecurity'), quantity: 1 }) } }); }",
+                  "for (let purchase = 0; purchase < 10; purchase++) { pm.sendRequest({ url: pm.environment.get('baseUrl') + '/orders', method: 'POST', header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('limitedCustomerToken'), 'Idempotency-Key': pm.variables.replaceIn('{{$guid}}') }, body: { mode: 'raw', raw: JSON.stringify({ eventId: pm.collectionVariables.get('eventSecurity'), quantity: 1 }) } }); }",
                   "setTimeout(() => {}, 2000);"
                 ]
               }
