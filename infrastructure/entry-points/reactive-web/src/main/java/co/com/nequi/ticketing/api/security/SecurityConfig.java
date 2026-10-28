@@ -24,7 +24,8 @@ import static co.com.nequi.ticketing.commons.exception.TechnicalErrorMessage.UNA
 
 /**
  * Security of the API: stateless, without sessions, CSRF, basic or form login. The reads of the
- * catalog and the availability and the health of the service are public; creating events and granting
+ * catalog and the availability and the health of the service are public, and so is the webhook of the
+ * payment gateway, which its signature authenticates; creating events and granting
  * complimentary tickets need the administrator role; every other route needs a valid bearer token.
  * The purchases of each customer are limited once the token is verified.
  * A rejection becomes an error of the catalog, rendered by the global handler.
@@ -59,6 +60,7 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.GET, routes.eventsPath(), routes.eventByIdPath(),
                                 routes.eventAvailabilityPath(), routes.batchAvailabilityPath(),
                                 routes.availabilityStreamPath(), HEALTH).permitAll()
+                        .pathMatchers(HttpMethod.POST, routes.paymentWebhookPath()).permitAll()
                         .pathMatchers(HttpMethod.POST, routes.eventsPath(), routes.complimentaryPath())
                         .hasRole(jwt.adminRole())
                         .anyExchange().authenticated())
